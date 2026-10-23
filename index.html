@@ -38,7 +38,7 @@
                         <input type="text" x-model="authForm.kullaniciAdi" required class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-600 bg-slate-50" placeholder="ornek_kullanici">
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Şifre (En az 6 karakter)</label>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Şifre</label>
                         <input type="password" x-model="authForm.password" required class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-600 bg-slate-50" placeholder="••••••••">
                     </div>
 
@@ -764,19 +764,19 @@
 
                     onSnapshot(collection(db, 'artifacts', appId, 'users', uid, 'gelirler'), (snapshot) => {
                         this.gelirler = snapshot.docs.map(d => ({ firebaseId: d.id, ...d.data() }));
-                    }, (err) => console.error(err));
+                    }, (err) => console.error("Gelir dinleme hatası:", err));
 
                     onSnapshot(collection(db, 'artifacts', appId, 'users', uid, 'giderler'), (snapshot) => {
                         this.giderler = snapshot.docs.map(d => ({ firebaseId: d.id, ...d.data() }));
-                    }, (err) => console.error(err));
+                    }, (err) => console.error("Gider dinleme hatası:", err));
 
                     onSnapshot(collection(db, 'artifacts', appId, 'users', uid, 'borclar'), (snapshot) => {
                         this.borclar = snapshot.docs.map(d => ({ firebaseId: d.id, ...d.data() }));
-                    }, (err) => console.error(err));
+                    }, (err) => console.error("Borç dinleme hatası:", err));
 
                     onSnapshot(collection(db, 'artifacts', appId, 'users', uid, 'taksitliAlisverisler'), (snapshot) => {
                         this.taksitliAlisverisler = snapshot.docs.map(d => ({ firebaseId: d.id, ...d.data() }));
-                    }, (err) => console.error(err));
+                    }, (err) => console.error("Taksit dinleme hatası:", err));
 
                     onSnapshot(doc(db, 'artifacts', appId, 'users', uid, 'settings', 'config'), (docSnap) => {
                         if (docSnap.exists() && docSnap.data().donemBaslangicGunu) {
@@ -787,10 +787,14 @@
 
                 async saveSettings() {
                     if (!this.userId) return;
-                    const { db, appId, doc, setDoc } = window.firebaseAppInstance;
-                    await setDoc(doc(db, 'artifacts', appId, 'users', this.userId, 'settings', 'config'), {
-                        donemBaslangicGunu: Number(this.donemBaslangicGunu)
-                    }, { merge: true });
+                    try {
+                        const { db, appId, doc, setDoc } = window.firebaseAppInstance;
+                        await setDoc(doc(db, 'artifacts', appId, 'users', this.userId, 'settings', 'config'), {
+                            donemBaslangicGunu: Number(this.donemBaslangicGunu)
+                        }, { merge: true });
+                    } catch(err) {
+                        console.error(err);
+                    }
                 },
 
                 yedekle() {
@@ -863,16 +867,20 @@
                 async executeReset() {
                     if (this.resetModal.password === '0000') {
                         if (!this.userId) return;
-                        const { db, appId, collection, getDocs, deleteDoc, doc } = window.firebaseAppInstance;
-                        const collections = ['gelirler', 'giderler', 'borclar', 'taksitliAlisverisler'];
-                        for (let col of collections) {
-                            const snap = await getDocs(collection(db, 'artifacts', appId, 'users', this.userId, col));
-                            for (let d of snap.docs) {
-                                await deleteDoc(doc(db, 'artifacts', appId, 'users', this.userId, col, d.id));
+                        try {
+                            const { db, appId, collection, getDocs, deleteDoc, doc } = window.firebaseAppInstance;
+                            const collections = ['gelirler', 'giderler', 'borclar', 'taksitliAlisverisler'];
+                            for (let col of collections) {
+                                const snap = await getDocs(collection(db, 'artifacts', appId, 'users', this.userId, col));
+                                for (let d of snap.docs) {
+                                    await deleteDoc(doc(db, 'artifacts', appId, 'users', this.userId, col, d.id));
+                                }
                             }
+                            this.resetModal.open = false;
+                            this.showToast('Veriler sıfırlandı.', 'fa-solid fa-rotate-right');
+                        } catch(err) {
+                            this.showToast('Sıfırlama hatası!', 'fa-solid fa-triangle-exclamation');
                         }
-                        this.resetModal.open = false;
-                        this.showToast('Veriler sıfırlandı.', 'fa-solid fa-rotate-right');
                     } else {
                         this.resetModal.error = true;
                     }
@@ -1006,75 +1014,110 @@
 
                 async addGelir() {
                     if (!this.yeniGelir.tutar || !this.userId) return;
-                    const { db, appId, collection, addDoc } = window.firebaseAppInstance;
-                    await addDoc(collection(db, 'artifacts', appId, 'users', this.userId, 'gelirler'), { ...this.yeniGelir, tutar: Number(this.yeniGelir.tutar) });
-                    this.yeniGelir.tutar = '';
-                    this.showToast('Gelir kaydedildi.');
+                    try {
+                        const { db, appId, collection, addDoc } = window.firebaseAppInstance;
+                        await addDoc(collection(db, 'artifacts', appId, 'users', this.userId, 'gelirler'), { ...this.yeniGelir, tutar: Number(this.yeniGelir.tutar) });
+                        this.yeniGelir.tutar = '';
+                        this.showToast('Gelir kaydedildi.');
+                    } catch(err) {
+                        console.error(err);
+                        this.showToast('Kayıt başarısız! Firebase kurallarını kontrol edin.', 'fa-solid fa-triangle-exclamation');
+                    }
                 },
 
                 async addGider() {
                     if (!this.yeniGider.tutar || !this.userId) return;
-                    const { db, appId, collection, addDoc } = window.firebaseAppInstance;
-                    await addDoc(collection(db, 'artifacts', appId, 'users', this.userId, 'giderler'), { ...this.yeniGider, tutar: Number(this.yeniGider.tutar) });
-                    this.yeniGider.tutar = '';
-                    this.showToast('Gider kaydedildi.');
+                    try {
+                        const { db, appId, collection, addDoc } = window.firebaseAppInstance;
+                        await addDoc(collection(db, 'artifacts', appId, 'users', this.userId, 'giderler'), { ...this.yeniGider, tutar: Number(this.yeniGider.tutar) });
+                        this.yeniGider.tutar = '';
+                        this.showToast('Gider kaydedildi.');
+                    } catch(err) {
+                        console.error(err);
+                        this.showToast('Kayıt başarısız! Firebase kurallarını kontrol edin.', 'fa-solid fa-triangle-exclamation');
+                    }
                 },
 
                 async addBorc() {
                     let toplam = Number(this.yeniBorc.toplam);
                     let sayi = Number(this.yeniBorc.taksitSayisi) || 1;
                     if (!this.yeniBorc.adi || !toplam || !this.userId) return;
-                    const { db, appId, collection, addDoc } = window.firebaseAppInstance;
-
-                    if (sayi > 1) {
-                        let grupId = Date.now() + Math.random();
-                        let aylikTutar = toplam / sayi;
-                        let baslangicTarihi = new Date(this.yeniBorc.vade + 'T00:00:00');
-                        for (let i = 0; i < sayi; i++) {
-                            let vadeTarihi = new Date(baslangicTarihi);
-                            vadeTarihi.setMonth(vadeTarihi.getMonth() + i);
+                    try {
+                        const { db, appId, collection, addDoc } = window.firebaseAppInstance;
+                        if (sayi > 1) {
+                            let grupId = Date.now() + Math.random();
+                            let aylikTutar = toplam / sayi;
+                            let baslangicTarihi = new Date(this.yeniBorc.vade + 'T00:00:00');
+                            for (let i = 0; i < sayi; i++) {
+                                let vadeTarihi = new Date(baslangicTarihi);
+                                vadeTarihi.setMonth(vadeTarihi.getMonth() + i);
+                                await addDoc(collection(db, 'artifacts', appId, 'users', this.userId, 'borclar'), {
+                                    grupId, adi: `${this.yeniBorc.adi} (${i + 1}/${sayi})`, toplam, kalan: aylikTutar, vade: vadeTarihi.toISOString().split('T')[0]
+                                });
+                            }
+                        } else {
                             await addDoc(collection(db, 'artifacts', appId, 'users', this.userId, 'borclar'), {
-                                grupId, adi: `${this.yeniBorc.adi} (${i + 1}/${sayi})`, toplam, kalan: aylikTutar, vade: vadeTarihi.toISOString().split('T')[0]
+                                grupId: null, adi: this.yeniBorc.adi, toplam, kalan: toplam, vade: this.yeniBorc.vade
                             });
                         }
-                    } else {
-                        await addDoc(collection(db, 'artifacts', appId, 'users', this.userId, 'borclar'), {
-                            grupId: null, adi: this.yeniBorc.adi, toplam, kalan: toplam, vade: this.yeniBorc.vade
-                        });
+                        this.yeniBorc = { adi: '', toplam: '', taksitSayisi: 1, vade: new Date().toISOString().split('T')[0] };
+                        this.showToast('Borç eklendi.');
+                    } catch(err) {
+                        console.error(err);
+                        this.showToast('Kayıt başarısız! Firebase kurallarını kontrol edin.', 'fa-solid fa-triangle-exclamation');
                     }
-                    this.yeniBorc = { adi: '', toplam: '', taksitSayisi: 1, vade: new Date().toISOString().split('T')[0] };
-                    this.showToast('Borç eklendi.');
                 },
 
                 async addEkstre() {
                     let tutar = Number(this.ekstreForm.tutar);
-                    if (!this.ekstreForm.banka || !tutar || !this.userId) return;
-                    const { db, appId, collection, addDoc } = window.firebaseAppInstance;
-                    await addDoc(collection(db, 'artifacts', appId, 'users', this.userId, 'borclar'), {
-                        grupId: null, adi: `${this.ekstreForm.banka} Ekstresi`, toplam: tutar, kalan: tutar, vade: this.ekstreForm.vade
-                    });
-                    this.ekstreForm = { banka: 'Ziraat Bankası', tutar: '', vade: new Date().toISOString().split('T')[0] };
-                    this.showToast('Ekstre eklendi.');
+                    if (!this.ekstreForm.banka || !tutar || isNaN(tutar) || tutar <= 0) {
+                        this.showToast('Lütfen geçerli bir ekstre tutarı girin.', 'fa-solid fa-triangle-exclamation');
+                        return;
+                    }
+                    if (!this.userId) {
+                        this.showToast('Oturum açılmamış.', 'fa-solid fa-triangle-exclamation');
+                        return;
+                    }
+                    try {
+                        const { db, appId, collection, addDoc } = window.firebaseAppInstance;
+                        await addDoc(collection(db, 'artifacts', appId, 'users', this.userId, 'borclar'), {
+                            grupId: null, 
+                            adi: `${this.ekstreForm.banka} Ekstresi`, 
+                            toplam: tutar, 
+                            kalan: tutar, 
+                            vade: this.ekstreForm.vade
+                        });
+                        this.ekstreForm = { banka: 'Ziraat Bankası', tutar: '', vade: new Date().toISOString().split('T')[0] };
+                        this.showToast('Ekstre başarıyla eklendi.', 'fa-solid fa-circle-check');
+                    } catch (err) {
+                        console.error("Ekstre ekleme hatası:", err);
+                        this.showToast('Kayıt başarısız! Firebase kurallarını kontrol edin.', 'fa-solid fa-triangle-exclamation');
+                    }
                 },
 
                 async addTaksitliAlisveris() {
                     let toplam = Number(this.taksitliBorc.toplam);
                     let sayi = Number(this.taksitliBorc.sayi);
                     if (!this.taksitliBorc.adi || !toplam || !sayi || !this.userId) return;
-                    let aylikTutar = toplam / sayi;
-                    let baslangicTarihi = new Date(this.taksitliBorc.ilkTarih + 'T00:00:00');
-                    let taksitler = [];
-                    for (let i = 0; i < sayi; i++) {
-                        let vadeTarihi = new Date(baslangicTarihi);
-                        vadeTarihi.setMonth(vadeTarihi.getMonth() + i);
-                        taksitler.push({ id: Date.now() + i + Math.random(), adi: `${this.taksitliBorc.adi} (${i + 1}/${sayi})`, tutar: aylikTutar, vade: vadeTarihi.toISOString().split('T')[0] });
+                    try {
+                        let aylikTutar = toplam / sayi;
+                        let baslangicTarihi = new Date(this.taksitliBorc.ilkTarih + 'T00:00:00');
+                        let taksitler = [];
+                        for (let i = 0; i < sayi; i++) {
+                            let vadeTarihi = new Date(baslangicTarihi);
+                            vadeTarihi.setMonth(vadeTarihi.getMonth() + i);
+                            taksitler.push({ id: Date.now() + i + Math.random(), adi: `${this.taksitliBorc.adi} (${i + 1}/${sayi})`, tutar: aylikTutar, vade: vadeTarihi.toISOString().split('T')[0] });
+                        }
+                        const { db, appId, collection, addDoc } = window.firebaseAppInstance;
+                        await addDoc(collection(db, 'artifacts', appId, 'users', this.userId, 'taksitliAlisverisler'), {
+                            adi: this.taksitliBorc.adi, toplam, sayi, taksitler
+                        });
+                        this.taksitliBorc = { adi: '', toplam: '', sayi: 6, ilkTarih: new Date().toISOString().split('T')[0] };
+                        this.showToast('Taksitli plan eklendi.');
+                    } catch(err) {
+                        console.error(err);
+                        this.showToast('Kayıt başarısız! Firebase kurallarını kontrol edin.', 'fa-solid fa-triangle-exclamation');
                     }
-                    const { db, appId, collection, addDoc } = window.firebaseAppInstance;
-                    await addDoc(collection(db, 'artifacts', appId, 'users', this.userId, 'taksitliAlisverisler'), {
-                        adi: this.taksitliBorc.adi, toplam, sayi, taksitler
-                    });
-                    this.taksitliBorc = { adi: '', toplam: '', sayi: 6, ilkTarih: new Date().toISOString().split('T')[0] };
-                    this.showToast('Taksitli plan eklendi.');
                 },
 
                 openDetayModal(borc) { this.detayModal.borc = borc; this.detayModal.open = true; },
@@ -1089,16 +1132,21 @@
                     let borc = this.odemeModal.borc;
                     let odeme = Number(this.odemeModal.tutar);
                     if (borc && odeme > 0 && this.userId) {
-                        if (odeme > borc.kalan) odeme = borc.kalan;
-                        let yeniKalan = borc.kalan - odeme;
-                        const { db, appId, doc, deleteDoc, updateDoc, collection, addDoc } = window.firebaseAppInstance;
-                        if (borc.firebaseId) {
-                            if (yeniKalan <= 0) await deleteDoc(doc(db, 'artifacts', appId, 'users', this.userId, 'borclar', borc.firebaseId));
-                            else await updateDoc(doc(db, 'artifacts', appId, 'users', this.userId, 'borclar', borc.firebaseId), { kalan: yeniKalan });
+                        try {
+                            if (odeme > borc.kalan) odeme = borc.kalan;
+                            let yeniKalan = borc.kalan - odeme;
+                            const { db, appId, doc, deleteDoc, updateDoc, collection, addDoc } = window.firebaseAppInstance;
+                            if (borc.firebaseId) {
+                                if (yeniKalan <= 0) await deleteDoc(doc(db, 'artifacts', appId, 'users', this.userId, 'borclar', borc.firebaseId));
+                                else await updateDoc(doc(db, 'artifacts', appId, 'users', this.userId, 'borclar', borc.firebaseId), { kalan: yeniKalan });
+                            }
+                            await addDoc(collection(db, 'artifacts', appId, 'users', this.userId, 'giderler'), { kategori: 'Borç Ödemesi', tutar: odeme, tarih: new Date().toISOString().split('T')[0] });
+                            this.odemeModal.open = false;
+                            this.showToast('Ödeme işlendi.');
+                        } catch(err) {
+                            console.error(err);
+                            this.showToast('Ödeme işlenemedi!', 'fa-solid fa-triangle-exclamation');
                         }
-                        await addDoc(collection(db, 'artifacts', appId, 'users', this.userId, 'giderler'), { kategori: 'Borç Ödemesi', tutar: odeme, tarih: new Date().toISOString().split('T')[0] });
-                        this.odemeModal.open = false;
-                        this.showToast('Ödeme işlendi.');
                     }
                 },
 
@@ -1106,9 +1154,14 @@
                     this.confirmModal.title = 'Borcu Sil';
                     this.confirmModal.onConfirm = async () => {
                         if (borc.firebaseId && this.userId) {
-                            const { db, appId, doc, deleteDoc } = window.firebaseAppInstance;
-                            await deleteDoc(doc(db, 'artifacts', appId, 'users', this.userId, 'borclar', borc.firebaseId));
-                            this.showToast('Borç silindi.');
+                            try {
+                                const { db, appId, doc, deleteDoc } = window.firebaseAppInstance;
+                                await deleteDoc(doc(db, 'artifacts', appId, 'users', this.userId, 'borclar', borc.firebaseId));
+                                this.showToast('Borç silindi.');
+                            } catch(err) {
+                                console.error(err);
+                                this.showToast('Silinemedi!', 'fa-solid fa-triangle-exclamation');
+                            }
                         }
                     };
                     this.confirmModal.open = true;
