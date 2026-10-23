@@ -1,0 +1,1216 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Borç ve Bütçe Planlama Sistemi</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome İkonları -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Alpine.js (Reaktif Yapı) -->
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/alpinejs/3.13.5/cdn.min.js"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col" x-data="budgetApp()">
+
+    <!-- Üst Bilgi Barı -->
+    <header class="bg-slate-900 text-white shadow-lg sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="bg-indigo-600 p-2.5 rounded-xl text-xl shadow-md">
+                    <i class="fa-solid fa-wallet"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight">Borç ve Bütçe Planlama Sistemi</h1>
+                    <p class="text-xs text-slate-400">Finansal Simülasyon & Özel Dönem Yönetimi</p>
+                </div>
+            </div>
+            <!-- Sekme Navigasyonu -->
+            <nav class="flex flex-wrap gap-2 items-center bg-slate-800/80 p-1.5 rounded-xl border border-slate-700">
+                <button @click="activeTab = 'ozet'" :class="activeTab === 'ozet' ? 'bg-indigo-600 text-white shadow' : 'text-slate-300 hover:text-white'" class="px-3.5 py-2 rounded-lg text-sm font-medium transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-chart-pie"></i> Genel Bakış
+                </button>
+                <button @click="activeTab = 'taksitler'" :class="activeTab === 'taksitler' ? 'bg-indigo-600 text-white shadow' : 'text-slate-300 hover:text-white'" class="px-3.5 py-2 rounded-lg text-sm font-medium transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-calendar-days"></i> Yaklaşan Taksitler
+                </button>
+                <button @click="activeTab = 'gelirGider'" :class="activeTab === 'gelirGider' ? 'bg-indigo-600 text-white shadow' : 'text-slate-300 hover:text-white'" class="px-3.5 py-2 rounded-lg text-sm font-medium transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-right-left"></i> Gelir / Gider
+                </button>
+                <button @click="activeTab = 'borclar'" :class="activeTab === 'borclar' ? 'bg-indigo-600 text-white shadow' : 'text-slate-300 hover:text-white'" class="px-3.5 py-2 rounded-lg text-sm font-medium transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-credit-card"></i> Borç Yönetimi
+                </button>
+                <button @click="activeTab = 'simulasyon'" :class="activeTab === 'simulasyon' ? 'bg-indigo-600 text-white shadow' : 'text-slate-300 hover:text-white'" class="px-3.5 py-2 rounded-lg text-sm font-medium transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-calculator"></i> Gelecek Ay Simülasyonu
+                </button>
+
+                <!-- Geri Al & İleri Al Butonları -->
+                <div class="flex items-center gap-1 ml-2 border-l border-slate-700 pl-2">
+                    <button @click="undo()" :disabled="undoStack.length === 0" :class="undoStack.length === 0 ? 'opacity-40 cursor-not-allowed bg-slate-800' : 'hover:bg-slate-700 bg-slate-800 text-slate-200'" class="px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-1 border border-slate-700" title="Geri Al">
+                        <i class="fa-solid fa-rotate-left"></i> <span class="hidden lg:inline">Geri Al</span>
+                    </button>
+                    <button @click="redo()" :disabled="redoStack.length === 0" :class="redoStack.length === 0 ? 'opacity-40 cursor-not-allowed bg-slate-800' : 'hover:bg-slate-700 bg-slate-800 text-slate-200'" class="px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-1 border border-slate-700" title="İleri Al">
+                        <i class="fa-solid fa-rotate-right"></i> <span class="hidden lg:inline">İleri Al</span>
+                    </button>
+                </div>
+
+                <!-- Verileri Sıfırla Butonu (Kırmızı) -->
+                <button @click="resetModal.open = true; resetModal.password = ''; resetModal.error = false;" class="bg-rose-600 hover:bg-rose-700 text-white px-3.5 py-2 rounded-lg text-sm font-medium transition flex items-center gap-1.5 shadow-sm ml-1" title="Tüm Verileri Sıfırla">
+                    <i class="fa-solid fa-trash-can"></i> <span class="hidden lg:inline">Sıfırla</span>
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Ana İçerik Alanı -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 py-8">
+
+        <!-- 1. GENEL BAKIŞ -->
+        <div x-show="activeTab === 'ozet'" class="space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <!-- Nakit Kartı -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm font-medium text-slate-500">Mevcut Nakit / Varlık</span>
+                        <div class="p-3 bg-emerald-50 text-emerald-600 rounded-xl"><i class="fa-solid fa-turkish-lira-sign text-lg"></i></div>
+                    </div>
+                    <div class="mt-4">
+                        <h2 class="text-2xl font-bold text-slate-900" x-text="formatCurrency(toplamNakit())"></h2>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-1">Başlangıç nakdi ve eklenen gelir/giderler dahil</p>
+                </div>
+                <!-- Toplam Borç Kartı -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm font-medium text-slate-500">Toplam Kalan Borç</span>
+                        <div class="p-3 bg-rose-50 text-rose-600 rounded-xl"><i class="fa-solid fa-file-invoice-dollar text-lg"></i></div>
+                    </div>
+                    <div class="mt-4">
+                        <h2 class="text-2xl font-bold text-rose-600" x-text="formatCurrency(toplamBorc())"></h2>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-1">Aktif borçların kalan toplamı</p>
+                </div>
+                <!-- Net Durum Kartı -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm font-medium text-slate-500">Net Finansal Durum</span>
+                        <div class="p-3 bg-indigo-50 text-indigo-600 rounded-xl"><i class="fa-solid fa-scale-balanced text-lg"></i></div>
+                    </div>
+                    <div class="mt-4">
+                        <h2 class="text-2xl font-bold" :class="netDurum() >= 0 ? 'text-indigo-600' : 'text-rose-600'" x-text="formatCurrency(netDurum())"></h2>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-1">Nakit eksi toplam borçlar</p>
+                </div>
+                <!-- Bu Dönem Finansal Durumu Kartı -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm font-medium text-slate-500">Bu Dönem Finansal Durumu</span>
+                        <div class="p-3 bg-amber-50 text-amber-600 rounded-xl"><i class="fa-solid fa-calendar-days text-lg"></i></div>
+                    </div>
+                    <div class="mt-4">
+                        <h2 class="text-2xl font-bold" :class="buDonemNetDurum() >= 0 ? 'text-emerald-600' : 'text-rose-600'" x-text="formatCurrency(buDonemNetDurum())"></h2>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-1">Nakit eksi seçili dönemin taksitleri</p>
+                </div>
+            </div>
+
+            <!-- Bakiye & Borç Durumu / Finansal Sağlık Analizi Banner -->
+            <div class="bg-gradient-to-r from-slate-900 to-indigo-950 text-white p-6 rounded-2xl shadow-md flex flex-col md:flex-row justify-between items-center gap-4">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-indigo-600/50 flex items-center justify-center text-xl text-indigo-300 border border-indigo-500/30">
+                        <i class="fa-solid fa-chart-line"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold flex items-center gap-2">
+                            <span>Bakiye & Borç Durumu Analizi</span>
+                            <span class="text-xs px-2.5 py-0.5 rounded-full font-semibold uppercase tracking-wider"
+                                  :class="{
+                                      'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30': getFinansalSaglik().durum === 'Güvenli',
+                                      'bg-amber-500/20 text-amber-300 border border-amber-500/30': getFinansalSaglik().durum === 'Dikkat',
+                                      'bg-rose-500/20 text-rose-300 border border-rose-500/30': getFinansalSaglik().durum === 'Riskli'
+                                  }"
+                                  x-text="getFinansalSaglik().durum"></span>
+                        </h3>
+                        <p class="text-xs text-slate-300 mt-1" x-text="getFinansalSaglik().mesaj"></p>
+                    </div>
+                </div>
+                <div class="bg-white/10 px-4 py-3 rounded-xl border border-white/10 text-right min-w-[180px]">
+                    <span class="text-[10px] text-slate-300 block uppercase tracking-wider">Borç / Varlık Oranı</span>
+                    <span class="text-lg font-bold" x-text="getBorcOrani()"></span>
+                </div>
+            </div>
+
+            <!-- Son Hareketler & Ay Ay Aktif Borçlar Özeti -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Aktif Borçlar (Ay Ay Gruplanmış) -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-bold text-slate-800 flex items-center"><i class="fa-solid fa-calendar-days text-indigo-600 mr-2"></i> Aktif Borçlar (Ay Ay Liste)</h3>
+                        <button @click="activeTab = 'taksitler'" class="text-xs text-indigo-600 hover:underline font-semibold">Tümünü Gör</button>
+                    </div>
+                    <template x-if="borclar.length > 0">
+                        <div class="space-y-4 max-h-[380px] overflow-y-auto pr-1">
+                            <template x-for="group in getDebtsGroupedByMonth()" :key="group.month">
+                                <div class="border border-slate-100 rounded-xl p-3 bg-slate-50/50">
+                                    <div class="text-xs font-bold text-indigo-700 uppercase tracking-wide mb-2 flex justify-between items-center bg-indigo-50 px-2.5 py-1.5 rounded-lg">
+                                        <span x-text="group.month"></span>
+                                        <span class="text-slate-600 font-semibold" x-text="formatCurrency(group.items.reduce((acc, i) => acc + Number(i.kalan), 0))"></span>
+                                    </div>
+                                    <div class="space-y-2">
+                                        <template x-for="b in group.items" :key="b.id">
+                                            <div class="flex justify-between items-center text-xs bg-white p-2.5 rounded-lg border border-slate-200 cursor-pointer hover:border-indigo-300 transition" @click="openDetayModal(b)">
+                                                <div>
+                                                    <span class="font-medium text-slate-800 block" x-text="b.adi"></span>
+                                                    <span class="text-slate-400 text-[10px]">Vade: <span x-text="b.vade"></span></span>
+                                                </div>
+                                                <div class="text-right">
+                                                    <span class="font-bold text-indigo-600 block" x-text="formatCurrency(b.kalan)"></span>
+                                                    <span class="text-[10px] text-rose-600 font-semibold">Toplam: <span x-text="formatCurrency(b.toplam)"></span></span>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                    <template x-if="borclar.length === 0">
+                        <p class="text-sm text-slate-400 py-6 text-center">Kayıtlı aktif borç bulunmuyor.</p>
+                    </template>
+                </div>
+
+                <!-- Son Giderler -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center"><i class="fa-solid fa-receipt text-indigo-600 mr-2"></i> Son Giderler</h3>
+                    <template x-if="giderler.length > 0">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-sm">
+                                <thead class="border-b text-slate-400 font-medium">
+                                    <tr>
+                                        <th class="pb-2">Kategori</th>
+                                        <th class="pb-2">Tutar</th>
+                                        <th class="pb-2">Tarih</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100">
+                                    <template x-for="g in giderler.slice(-5).reverse()" :key="g.id">
+                                        <tr>
+                                            <td class="py-3 font-medium text-slate-800" x-text="g.kategori"></td>
+                                            <td class="py-3 text-rose-500 font-semibold" x-text="formatCurrency(g.tutar)"></td>
+                                            <td class="py-3 text-slate-500" x-text="g.tarih"></td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </template>
+                    <template x-if="giderler.length === 0">
+                        <p class="text-sm text-slate-400 py-6 text-center">Kayıtlı gider bulunmuyor.</p>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. YAKLAŞAN TAKSİTLER VE VADE TAKVİMİ (AKORDİYON LİSTE) -->
+        <div x-show="activeTab === 'taksitler'" class="space-y-6" style="display: none;">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-800 flex items-center"><i class="fa-solid fa-calendar-days text-indigo-600 mr-2"></i> Önümüzdeki Taksit ve Vade Takvimi</h3>
+                        <p class="text-sm text-slate-500">Ana borç kalemlerine ve alışveriş planlarına tıklayarak alt alta ait taksitleri açıp kapatabilirsiniz.</p>
+                    </div>
+                    <div class="bg-indigo-50 px-4 py-2 rounded-xl text-indigo-700 text-sm font-semibold border border-indigo-100">
+                        Toplam Kalan Borç: <span x-text="formatCurrency(toplamBorc())"></span>
+                    </div>
+                </div>
+
+                <template x-if="getDebtGroupsWithInstallments().length > 0">
+                    <div class="space-y-3">
+                        <template x-for="group in getDebtGroupsWithInstallments()" :key="group.key">
+                            <div class="bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden transition hover:border-indigo-300">
+                                <!-- Ana Kalem Satırı (Accordion Header) -->
+                                <div @click="group.expanded = !group.expanded" class="p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 cursor-pointer select-none bg-white hover:bg-slate-50/80 transition">
+                                    <div class="flex items-center gap-4">
+                                        <div class="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-sm">
+                                            <i :class="group.expanded ? 'fa-solid fa-chevron-up' : 'fa-solid fa-chevron-down'"></i>
+                                        </div>
+                                        <div>
+                                            <h4 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                                                <span x-text="group.baseName"></span>
+                                                <span x-show="group.isInformational" class="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full font-medium border border-indigo-100">Ekstre İçi</span>
+                                            </h4>
+                                            <span class="text-xs text-slate-400">Toplam Taksit Sayısı: <span x-text="group.items.length"></span> adet</span>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end">
+                                        <div class="text-left md:text-right">
+                                            <span class="text-[10px] text-slate-400 block uppercase font-medium">İlk/Sonraki Vade</span>
+                                            <span class="font-bold text-indigo-600 text-sm" x-text="group.nextVade"></span>
+                                        </div>
+                                        <div class="text-left md:text-right">
+                                            <span class="text-[10px] text-slate-400 block uppercase font-medium">Kalan Toplam Borç</span>
+                                            <span class="font-bold text-rose-600 text-base" x-text="formatCurrency(group.kalanToplam)"></span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Alt Taksitler Listesi (Accordion Content) -->
+                                <div x-show="group.expanded" x-transition class="bg-slate-50 border-t border-slate-200 p-4 space-y-2.5">
+                                    <template x-for="b in group.items" :key="b.id">
+                                        <div @click.stop="openDetayModal(b)" class="bg-white border border-slate-200 rounded-xl p-3 flex justify-between items-center text-xs hover:border-indigo-300 transition cursor-pointer">
+                                            <div class="flex items-center gap-3">
+                                                <span class="font-bold px-2.5 py-1 rounded-lg" :class="getVadeBadgeClass(b.vade)" x-text="b.vade"></span>
+                                                <div>
+                                                    <span class="font-semibold text-slate-800" x-text="b.adi"></span>
+                                                    <span x-show="b.isInformational" class="ml-2 text-[10px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full font-medium">Ekstre İçi</span>
+                                                </div>
+                                            </div>
+                                            <div class="flex items-center gap-4">
+                                                <div class="text-right">
+                                                    <span class="text-[10px] text-slate-400 block">Bu Taksit</span>
+                                                    <span class="font-bold text-indigo-600" x-text="formatCurrency(b.kalan)"></span>
+                                                </div>
+                                                <template x-if="!b.isInformational">
+                                                    <button @click.stop="openOdemeModal(b)" class="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 px-3 py-1.5 rounded-lg text-xs font-medium transition">Öde</button>
+                                                </template>
+                                                <template x-if="b.isInformational">
+                                                    <span class="text-[10px] text-slate-400 italic px-2">Bilgi Amaçlı</span>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+                <template x-if="getDebtGroupsWithInstallments().length === 0">
+                    <div class="text-center py-12">
+                        <div class="text-slate-300 text-4xl mb-3"><i class="fa-solid fa-calendar-check"></i></div>
+                        <p class="text-slate-500 font-medium">Yaklaşan taksit veya borç kaydı bulunmuyor.</p>
+                        <button @click="activeTab = 'borclar'" class="mt-4 bg-indigo-600 text-white text-sm font-medium px-4 py-2 rounded-xl">Yeni Borç Ekle</button>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+        <!-- 3. GELİR / GİDER YÖNETİMİ -->
+        <div x-show="activeTab === 'gelirGider'" class="grid grid-cols-1 md:grid-cols-2 gap-6" style="display: none;">
+            <!-- Gelir Ekle -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center"><i class="fa-solid fa-plus-circle text-emerald-600 mr-2"></i> Gelir Ekle</h3>
+                <form @submit.prevent="addGelir" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">Kategori</label>
+                        <select x-model="yeniGelir.kategori" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-600">
+                            <option value="Maaş">Maaş</option>
+                            <option value="Ek Gelir">Ek Gelir</option>
+                            <option value="Yatırım">Yatırım</option>
+                            <option value="Diğer">Diğer</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">Tutar (TL)</label>
+                        <input type="number" step="0.01" x-model.number="yeniGelir.tutar" required class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-600" placeholder="0.00">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">Tarih</label>
+                        <input type="date" x-model="yeniGelir.tarih" required class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-600">
+                    </div>
+                    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2.5 rounded-xl text-sm transition shadow-sm">Geliri Kaydet</button>
+                </form>
+            </div>
+
+            <!-- Gider Ekle -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center"><i class="fa-solid fa-minus-circle text-rose-600 mr-2"></i> Gider Ekle</h3>
+                <form @submit.prevent="addGider" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">Kategori</label>
+                        <select x-model="yeniGider.kategori" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-600">
+                            <option value="Kira">Kira</option>
+                            <option value="Fatura">Fatura</option>
+                            <option value="Market">Market</option>
+                            <option value="Ulaşım">Ulaşım</option>
+                            <option value="Eğlence">Eğlence</option>
+                            <option value="Diğer">Diğer</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">Tutar (TL)</label>
+                        <input type="number" step="0.01" x-model.number="yeniGider.tutar" required class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-600" placeholder="0.00">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">Tarih</label>
+                        <input type="date" x-model="yeniGider.tarih" required class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-600">
+                    </div>
+                    <button type="submit" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-medium py-2.5 rounded-xl text-sm transition shadow-sm">Gideri Kaydet</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- 4. BORÇ TAKİP MODÜLÜ -->
+        <div x-show="activeTab === 'borclar'" class="space-y-6" style="display: none;">
+            
+            <!-- KREDİ KARTI EKSTRESİ EKLEME -->
+            <div class="bg-amber-50/60 p-6 rounded-2xl shadow-sm border border-amber-200">
+                <h3 class="text-lg font-bold text-slate-800 mb-1 flex items-center"><i class="fa-solid fa-credit-card text-amber-600 mr-2"></i> Kredi Kartı Ekstresi Ekle</h3>
+                <p class="text-xs text-slate-500 mb-4">Ekstreniz kesildiğinde bankanızı seçip toplam borç tutarını ve son ödeme tarihini girerek güncel borçlarınıza ekleyin.</p>
+                <form @submit.prevent="addEkstre" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">Banka Seçimi</label>
+                        <select x-model="ekstreForm.banka" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-600 bg-white">
+                            <option value="Ziraat Bankası">Ziraat Bankası</option>
+                            <option value="Garanti BBVA">Garanti BBVA</option>
+                            <option value="İş Bankası">İş Bankası</option>
+                            <option value="Yapı Kredi">Yapı Kredi</option>
+                            <option value="Akbank">Akbank</option>
+                            <option value="Diğer Banka">Diğer Banka</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">Ekstre Borç Tutarı (TL)</label>
+                        <input type="number" step="0.01" x-model.number="ekstreForm.tutar" required class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-600 bg-white" placeholder="0.00">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">Son Ödeme (Vade) Tarihi</label>
+                        <input type="date" x-model="ekstreForm.vade" required class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-600 bg-white">
+                    </div>
+                    <div class="md:col-span-3 flex justify-end">
+                        <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-medium px-6 py-2.5 rounded-xl text-sm transition shadow-sm">Ekstreyi Borçlara Ekle</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Normal Borç / Kredi Ekle (Vade Sayısı Destekli) -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <h3 class="text-lg font-bold text-slate-800 mb-1 flex items-center"><i class="fa-solid fa-file-invoice text-indigo-600 mr-2"></i> Yeni Borç / Kredi Ekle</h3>
+                <p class="text-xs text-slate-500 mb-4">Kredi veya çok taksitli borçlarınızı vade sayısı vererek aylara otomatik böldürebilirsiniz.</p>
+                <form @submit.prevent="addBorc" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">Borç Adı / Kurum</label>
+                        <input type="text" x-model="yeniBorc.adi" required class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-600" placeholder="Örn: Araba Kredisi">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">Toplam Borç (TL)</label>
+                        <input type="number" step="0.01" x-model.number="yeniBorc.toplam" required class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-600" placeholder="0.00">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">Vade Sayısı (Ay)</label>
+                        <input type="number" min="1" max="60" x-model.number="yeniBorc.taksitSayisi" required class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-600" placeholder="1">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">İlk Vade Tarihi</label>
+                        <input type="date" x-model="yeniBorc.vade" required class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-600">
+                    </div>
+                    <div class="md:col-span-3 flex justify-between items-center pt-2">
+                        <span class="text-xs text-indigo-700 font-medium" x-show="yeniBorc.toplam && yeniBorc.taksitSayisi > 0">
+                            Hesaplanan Aylık Taksit: <strong x-text="formatCurrency(yeniBorc.toplam / yeniBorc.taksitSayisi)"></strong> (Toplam: <span x-text="formatCurrency(yeniBorc.toplam)"></span>)
+                        </span>
+                        <span x-show="!yeniBorc.toplam || !yeniBorc.taksitSayisi"></span>
+                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-6 py-2.5 rounded-xl text-sm transition shadow-sm">Borç / Krediyi Ekle</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Taksitli Alışveriş Ekle (Simülasyon Odaklı, Ekstrenin İçinde Kabul Edilir) -->
+            <div class="bg-indigo-50/60 p-6 rounded-2xl shadow-sm border border-indigo-100">
+                <h3 class="text-lg font-bold text-slate-800 mb-1 flex items-center"><i class="fa-solid fa-wand-magic-sparkles text-indigo-600 mr-2"></i> Taksitli Alışveriş Planı Oluşturucu <span class="text-xs font-normal text-indigo-600 ml-2 bg-indigo-100 px-2 py-0.5 rounded-full">Sadece Gelecek Ay Simülasyonları İçin</span></h3>
+                <p class="text-xs text-slate-500 mb-4">Bu tutar halihazırda ekstrenizin içinde yer aldığı için ana toplam borcunuzu şişirmez; yalnızca önümüzdeki aylar simüle edilirken taksitler hesaba katılır ve yaklaşan takvimde bilgi amaçlı gösterilir.</p>
+                <form @submit.prevent="addTaksitliAlisveris" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">Ürün / Alışveriş Adı</label>
+                        <input type="text" x-model="taksitliBorc.adi" required class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-600 bg-white" placeholder="Örn: Yeni Telefon">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">Toplam Tutar (TL)</label>
+                        <input type="number" step="0.01" x-model.number="taksitliBorc.toplam" required class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-600 bg-white" placeholder="12000">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">Taksit Sayısı (Ay)</label>
+                        <input type="number" min="2" max="36" x-model.number="taksitliBorc.sayi" required class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-600 bg-white" placeholder="6">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">İlk Taksit Vadesi</label>
+                        <input type="date" x-model="taksitliBorc.ilkTarih" required class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-600 bg-white">
+                    </div>
+                    <div class="md:col-span-4 flex justify-between items-center pt-2">
+                        <span class="text-xs text-indigo-700 font-medium" x-show="taksitliBorc.toplam && taksitliBorc.sayi > 0">
+                            Hesaplanan Aylık Taksit: <strong x-text="formatCurrency(taksitliBorc.toplam / taksitliBorc.sayi)"></strong>
+                        </span>
+                        <span x-show="!taksitliBorc.toplam || !taksitliBorc.sayi"></span>
+                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-6 py-2.5 rounded-xl text-sm transition shadow-sm">Planı Simülasyona Ekle</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Borç Listesi Tablosu -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <h3 class="text-lg font-bold text-slate-800 mb-4">Borç Listesi ve Yönetimi</h3>
+                <template x-if="borclar.length > 0">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead class="border-b text-slate-400 font-medium">
+                                <tr>
+                                    <th class="pb-3">Borç Adı</th>
+                                    <th class="pb-3">Toplam Borç</th>
+                                    <th class="pb-3">Taksit Tutarı</th>
+                                    <th class="pb-3">Kalan Toplam</th>
+                                    <th class="pb-3">Vade Tarihi</th>
+                                    <th class="pb-3 text-right">İşlemler</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                <template x-for="b in borclar" :key="b.id">
+                                    <tr>
+                                        <td class="py-3 font-medium text-slate-800" x-text="b.adi"></td>
+                                        <td class="py-3 text-slate-600" x-text="formatCurrency(b.toplam)"></td>
+                                        <td class="py-3 text-indigo-600 font-medium" x-text="formatCurrency(b.kalan)"></td>
+                                        <td class="py-3 text-rose-600 font-semibold" x-text="formatCurrency(getKalanToplamBorc(b))"></td>
+                                        <td class="py-3 text-slate-500" x-text="b.vade"></td>
+                                        <td class="py-3 text-right space-x-2">
+                                            <button @click="openOdemeModal(b)" class="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 px-3 py-1.5 rounded-lg text-xs font-medium transition">Ödeme Yap</button>
+                                            <button @click="confirmBorcSil(b.id)" class="bg-rose-50 text-rose-600 hover:bg-rose-100 px-3 py-1.5 rounded-lg text-xs font-medium transition">Sil</button>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </template>
+                <template x-if="borclar.length === 0">
+                    <p class="text-sm text-slate-400 py-6 text-center">Henüz eklenmiş bir borç kaydı bulunmuyor.</p>
+                </template>
+            </div>
+
+            <!-- Taksitli Alışveriş Planları Tablosu (Simülasyon Harici) -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200" x-show="taksitliAlisverisler.length > 0">
+                <h3 class="text-lg font-bold text-slate-800 mb-1 flex items-center"><i class="fa-solid fa-wand-magic-sparkles text-indigo-600 mr-2"></i> Aktif Taksitli Alışveriş Planlarım</h3>
+                <p class="text-xs text-slate-500 mb-4">Bu planlar ekstrelerinizin içinde yer aldığı için ana borç toplamını etkilemez, yalnızca gelecek ay simülasyonlarında taksit olarak işlenir.</p>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="border-b text-slate-400 font-medium">
+                            <tr>
+                                <th class="pb-3">Ürün / Plan Adı</th>
+                                <th class="pb-3">Toplam Tutar</th>
+                                <th class="pb-3">Taksit Sayısı</th>
+                                <th class="pb-3 text-right">İşlemler</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            <template x-for="p in taksitliAlisverisler" :key="p.id">
+                                <tr>
+                                    <td class="py-3 font-medium text-slate-800" x-text="p.adi"></td>
+                                    <td class="py-3 text-slate-600" x-text="formatCurrency(p.toplam)"></td>
+                                    <td class="py-3 text-indigo-600 font-medium" x-text="p.sayi + ' Ay'"></td>
+                                    <td class="py-3 text-right">
+                                        <button @click="confirmTaksitliPlanSil(p.id)" class="bg-rose-50 text-rose-600 hover:bg-rose-100 px-3 py-1.5 rounded-lg text-xs font-medium transition">Sil</button>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- 5. GELECEK AY SİMÜLASYONU (DÖNEMSEL) -->
+        <div x-show="activeTab === 'simulasyon'" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-6" style="display: none;">
+            <div>
+                <h3 class="text-lg font-bold text-slate-800 mb-1">🔮 Dönemsel Bütçe ve Nakit Akışı Simülasyonu</h3>
+                <p class="text-sm text-slate-500">Aktif Dönem: <span class="font-semibold text-indigo-600" x-text="getDonemAciklamasi()"></span>. Bu dönemde kazanmayı beklediğiniz geliri girin; vadesi bu aralıkta olan borç taksitleriniz ve taksitli alışveriş planlarınız sistemden otomatik çekilir.</p>
+            </div>
+
+            <!-- Dönem Başlangıç Günü Ayarı (1-28 Sınırlandırılmış) -->
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col md:flex-row justify-between items-center gap-4">
+                <div>
+                    <h4 class="text-sm font-bold text-slate-800"><i class="fa-solid fa-gear text-indigo-600 mr-1.5"></i> Bütçe / Maaş Dönemi Başlangıç Günü</h4>
+                    <p class="text-xs text-slate-500">Ödeme döneminizin her ayın hangi gününde başladığını belirleyin (1 - 28 arası).</p>
+                </div>
+                <div class="flex items-center gap-2 w-full md:w-auto justify-end">
+                    <span class="text-xs font-medium text-slate-600">Her ayın:</span>
+                    <input type="number" min="1" max="28" x-model.number="donemBaslangicGunu" @change="recordState()" class="w-24 border border-slate-300 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:border-indigo-600 font-bold text-indigo-600 text-center shadow-sm">
+                    <span class="text-xs font-medium text-slate-600">günü</span>
+                </div>
+            </div>
+
+            <!-- Parametre Girişleri -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50 p-6 rounded-xl border border-slate-200">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Bu Dönem Tahmini Gelir (TL)</label>
+                    <input type="number" step="0.01" x-model.number="simulasyon.tahminiGelir" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:border-indigo-600" placeholder="Örn: 35000">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Bu Dönem Ekstra Tahmini Diğer Giderler (TL) <span class="text-xs text-slate-400 font-normal">(İsteğe bağlı, boş kalabilir)</span></label>
+                    <input type="number" step="0.01" x-model.number="simulasyon.tahminiDigerGider" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:border-indigo-600" placeholder="0">
+                </div>
+            </div>
+
+            <!-- Sonuç Özet Kartları -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 pt-2">
+                <div class="bg-slate-50 p-5 rounded-xl border border-slate-200 text-center">
+                    <span class="text-xs text-slate-500 font-semibold uppercase tracking-wider">Mevcut Nakit Varlık</span>
+                    <h4 class="text-xl font-bold text-slate-800 mt-2" x-text="formatCurrency(toplamNakit())"></h4>
+                </div>
+                <div class="bg-emerald-50 p-5 rounded-xl border border-emerald-100 text-center">
+                    <span class="text-xs text-emerald-600 font-semibold uppercase tracking-wider">Bu Dönem Taksitleri</span>
+                    <h4 class="text-xl font-bold text-emerald-800 mt-2" x-text="formatCurrency(gelecekAyTaksitleriToplam())"></h4>
+                    <span class="text-[10px] text-emerald-600">Seçili dönem vadesi gelenler</span>
+                </div>
+                <div class="bg-indigo-50 p-5 rounded-xl border border-indigo-100 text-center">
+                    <span class="text-xs text-indigo-600 font-semibold uppercase tracking-wider">Net Beklenen Akış</span>
+                    <h4 class="text-xl font-bold text-indigo-900 mt-2" x-text="formatCurrency((Number(simulasyon.tahminiGelir) || 0) - (Number(simulasyon.tahminiDigerGider) || 0))"></h4>
+                </div>
+                <div class="bg-amber-50 p-5 rounded-xl border border-amber-100 text-center">
+                    <span class="text-xs text-amber-600 font-semibold uppercase tracking-wider">Dönem Sonu Net Nakit</span>
+                    <h4 class="text-2xl font-extrabold text-amber-900 mt-2" x-text="formatCurrency(gelecekAyNetDurum())"></h4>
+                </div>
+            </div>
+
+            <!-- Bu Dönemin Ödeme Listesi -->
+            <div class="mt-6">
+                <h4 class="text-md font-bold text-slate-800 mb-3 flex items-center"><i class="fa-solid fa-calendar-check text-indigo-600 mr-2"></i>Bu Dönem Vadesi Gelen Taksitler</h4>
+                <template x-if="gelecekAyBorclarListesi().length > 0">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead class="border-b text-slate-400 font-medium bg-slate-50">
+                                <tr>
+                                    <th class="p-3">Borç / Taksit Adı</th>
+                                    <th class="p-3">Taksit Tutarı</th>
+                                    <th class="p-3">Vade Tarihi</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                <template x-for="b in gelecekAyBorclarListesi()" :key="b.id">
+                                    <tr>
+                                        <td class="p-3 font-medium text-slate-800 flex items-center gap-2">
+                                            <span x-text="b.adi"></span>
+                                            <span x-show="b.isInformational" class="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full font-medium">Ekstre İçi</span>
+                                        </td>
+                                        <td class="p-3 text-rose-600 font-semibold" x-text="formatCurrency(b.kalan)"></td>
+                                        <td class="p-3 text-slate-500" x-text="b.vade"></td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </template>
+                <template x-if="gelecekAyBorclarListesi().length === 0">
+                    <p class="text-sm text-slate-400 py-6 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">Bu dönem aralığında vadesi gelen taksit bulunmuyor.</p>
+                </template>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Taksit Detay Açılır Penceresi (Modal) -->
+    <div x-show="detayModal.open" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm" style="display: none;">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-slate-200" @click.outside="detayModal.open = false">
+            <div class="flex justify-between items-center mb-4 pb-2 border-b">
+                <h3 class="text-lg font-bold text-slate-800 flex items-center"><i class="fa-solid fa-file-invoice-dollar text-indigo-600 mr-2"></i> Taksit Detayı</h3>
+                <button @click="detayModal.open = false" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <template x-if="detayModal.borc">
+                <div class="space-y-4 text-sm">
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2.5">
+                        <div class="flex justify-between"><span class="text-slate-500">Borç / Alışveriş Adı:</span> <strong class="text-slate-800 text-base" x-text="detayModal.borc.adi"></strong></div>
+                        <div class="flex justify-between"><span class="text-slate-500">Vade Tarihi:</span> <strong class="text-slate-800" x-text="detayModal.borc.vade"></strong></div>
+                        <div class="flex justify-between"><span class="text-slate-500">Bu Taksit Tutarı:</span> <strong class="text-indigo-600 font-bold" x-text="formatCurrency(detayModal.borc.kalan)"></strong></div>
+                        <div class="flex justify-between"><span class="text-slate-500">Toplam Borç (Ana Tutar):</span> <strong class="text-slate-700" x-text="formatCurrency(detayModal.borc.toplam)"></strong></div>
+                        <template x-if="!detayModal.borc.isInformational">
+                            <div class="flex justify-between"><span class="text-slate-500">Kalan Toplam Borç:</span> <strong class="text-rose-600 font-bold" x-text="formatCurrency(getKalanToplamBorc(detayModal.borc))"></strong></div>
+                        </template>
+                        <template x-if="detayModal.borc.isInformational">
+                            <div class="flex justify-between"><span class="text-slate-500">Kayıt Türü:</span> <strong class="text-indigo-600 font-bold">Taksitli Alışveriş Planı (Ekstre İçi - Bilgi Amaçlı)</strong></div>
+                        </template>
+                    </div>
+                    <div class="flex gap-3 pt-2">
+                        <template x-if="!detayModal.borc.isInformational">
+                            <button @click="detayModal.open = false; openOdemeModal(detayModal.borc)" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2.5 rounded-xl transition shadow-sm text-center">
+                                <i class="fa-solid fa-check mr-1"></i> Bu Taksidi Öde
+                            </button>
+                        </template>
+                        <template x-if="detayModal.borc.isInformational">
+                            <div class="flex-1 bg-indigo-50 text-indigo-700 text-xs font-medium py-2.5 rounded-xl text-center flex items-center justify-center">
+                                <i class="fa-solid fa-circle-info mr-1.5"></i> Bu taksit ekstre içeriğindedir (Bilgi Amaçlı).
+                            </div>
+                        </template>
+                        <button @click="detayModal.open = false" class="px-5 py-2.5 rounded-xl font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition">
+                            Kapat
+                        </button>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <!-- Ödeme Yapma Modalı -->
+    <div x-show="odemeModal.open" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm" style="display: none;">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200" @click.outside="odemeModal.open = false">
+            <h3 class="text-lg font-bold text-slate-800 mb-2">Borç Ödemesi Yap</h3>
+            <p class="text-sm text-slate-500 mb-4"><span class="font-semibold text-slate-700" x-text="odemeModal.borc?.adi"></span> için ödenecek taksit tutarını giriniz (Bu Taksit: <span x-text="formatCurrency(odemeModal.borc?.kalan || 0)"></span>)</p>
+            <form @submit.prevent="submitOdeme" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Ödeme Tutarı (TL)</label>
+                    <input type="number" step="0.01" x-model.number="odemeModal.tutar" required class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-600" placeholder="0.00">
+                </div>
+                <!-- Ödeme Sonrası Toplam Kalan Borç Canlı Göstergesi -->
+                <div class="bg-slate-50 p-3 rounded-xl text-xs text-slate-600 flex justify-between items-center border border-slate-200">
+                    <span>Ödeme Sonrası Toplam Kalan Borç:</span>
+                    <span class="font-bold text-indigo-600 text-sm" x-text="formatCurrency(Math.max(0, getKalanToplamBorc(odemeModal.borc) - (Number(odemeModal.tutar) || 0)))"></span>
+                </div>
+                <div class="flex justify-end space-x-3 pt-2">
+                    <button type="button" @click="odemeModal.open = false" class="px-4 py-2 rounded-xl text-sm font-medium bg-slate-100 text-slate-600 hover:bg-slate-200">İptal</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm">Ödemeyi Düş</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Onay Modalı -->
+    <div x-show="confirmModal.open" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm" style="display: none;">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-slate-200 text-center" @click.outside="confirmModal.open = false">
+            <div class="w-12 h-12 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-3 text-lg"><i class="fa-solid fa-triangle-exclamation"></i></div>
+            <h3 class="text-lg font-bold text-slate-800 mb-1" x-text="confirmModal.title">Emin misiniz?</h3>
+            <p class="text-sm text-slate-500 mb-6" x-text="confirmModal.message">Bu işlemi gerçekleştirmek istediğinize emin misiniz?</p>
+            <div class="flex justify-center space-x-3">
+                <button @click="confirmModal.open = false" class="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium bg-slate-100 text-slate-600 hover:bg-slate-200">Vazgeç</button>
+                <button @click="confirmModal.onConfirm(); confirmModal.open = false;" class="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium bg-rose-600 text-white hover:bg-rose-700">Evet, Sil</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Verileri Sıfırlama Şifre Modalı -->
+    <div x-show="resetModal.open" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm" style="display: none;">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-slate-200 text-center" @click.outside="resetModal.open = false">
+            <div class="w-12 h-12 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-3 text-lg"><i class="fa-solid fa-shield-halved"></i></div>
+            <h3 class="text-lg font-bold text-slate-800 mb-1">Verileri Sıfırla</h3>
+            <p class="text-sm text-slate-500 mb-4">Bu işlem tüm gelir, gider, borç ve taksitli alışveriş planlarınızı kalıcı olarak silecektir. Devam etmek için şifreyi girin (<span class="font-mono font-bold text-slate-700">0000</span>).</p>
+            <form @submit.prevent="executeReset()" class="space-y-4">
+                <div>
+                    <input type="password" x-model="resetModal.password" maxlength="4" placeholder="Şifre (0000)" class="w-full text-center tracking-widest text-lg border border-slate-300 rounded-xl px-3 py-2.5 focus:outline-none focus:border-rose-600 bg-slate-50 font-bold" required>
+                    <template x-if="resetModal.error">
+                        <p class="text-xs text-rose-600 font-semibold mt-1">Hatalı şifre! (Doğru şifre: 0000)</p>
+                    </template>
+                </div>
+                <div class="flex gap-3 pt-1">
+                    <button type="button" @click="resetModal.open = false" class="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition">Vazgeç</button>
+                    <button type="submit" class="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium bg-rose-600 text-white hover:bg-rose-700 transition shadow-sm">Sıfırla</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Bildirimi -->
+    <div x-show="toast.show" x-transition class="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-xl flex items-center gap-3 text-sm" style="display: none;">
+        <i :class="toast.icon" class="text-emerald-400"></i>
+        <span x-text="toast.message"></span>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-400 mt-auto">
+        Kişisel Finans ve Taksit Takip Sistemi &bull; Veriler tarayıcınızda güvenle saklanır.
+    </footer>
+
+    <!-- JavaScript Mantığı (Alpine.js) -->
+    <script>
+        function budgetApp() {
+            return {
+                activeTab: 'ozet',
+                bazNakit: 0,
+                donemBaslangicGunu: Number(localStorage.getItem('donemBaslangicGunu')) || 15,
+                gelirler: JSON.parse(localStorage.getItem('gelirler')) || [],
+                giderler: JSON.parse(localStorage.getItem('giderler')) || [],
+                borclar: JSON.parse(localStorage.getItem('borclar')) || [],
+                taksitliAlisverisler: JSON.parse(localStorage.getItem('taksitliAlisverisler')) || [],
+                
+                // Undo / Redo Stacks
+                undoStack: [],
+                redoStack: [],
+                
+                yeniGelir: { kategori: 'Maaş', tutar: '', tarih: new Date().toISOString().split('T')[0] },
+                yeniGider: { kategori: 'Market', tutar: '', tarih: new Date().toISOString().split('T')[0] },
+                yeniBorc: { adi: '', toplam: '', taksitSayisi: 1, vade: new Date().toISOString().split('T')[0] },
+                taksitliBorc: { adi: '', toplam: '', sayi: 6, ilkTarih: new Date().toISOString().split('T')[0] },
+                ekstreForm: { banka: 'Ziraat Bankası', tutar: '', vade: new Date().toISOString().split('T')[0] },
+                
+                simulasyon: { tahminiGelir: '', tahminiDigerGider: '' },
+
+                detayModal: { open: false, borc: null },
+                odemeModal: { open: false, borc: null, tutar: '' },
+                confirmModal: { open: false, title: '', message: '', onConfirm: () => {} },
+                resetModal: { open: false, password: '', error: false },
+                toast: { show: false, message: '', icon: 'fa-solid fa-circle-check' },
+
+                init() {
+                    this.$watch('gelirler', val => {
+                        localStorage.setItem('gelirler', JSON.stringify(val));
+                    });
+                    this.$watch('giderler', val => {
+                        localStorage.setItem('giderler', JSON.stringify(val));
+                    });
+                    this.$watch('borclar', val => {
+                        localStorage.setItem('borclar', JSON.stringify(val));
+                    });
+                    this.$watch('taksitliAlisverisler', val => {
+                        localStorage.setItem('taksitliAlisverisler', JSON.stringify(val));
+                    });
+                    this.$watch('donemBaslangicGunu', val => {
+                        localStorage.setItem('donemBaslangicGunu', val);
+                    });
+                },
+
+                getStateSnapshot() {
+                    return JSON.stringify({
+                        gelirler: this.gelirler,
+                        giderler: this.giderler,
+                        borclar: this.borclar,
+                        taksitliAlisverisler: this.taksitliAlisverisler,
+                        donemBaslangicGunu: this.donemBaslangicGunu
+                    });
+                },
+
+                recordState() {
+                    this.undoStack.push(this.getStateSnapshot());
+                    if (this.undoStack.length > 30) this.undoStack.shift();
+                    this.redoStack = [];
+                },
+
+                undo() {
+                    if (this.undoStack.length === 0) return;
+                    const currentState = this.getStateSnapshot();
+                    this.redoStack.push(currentState);
+                    const prevState = JSON.parse(this.undoStack.pop());
+                    this.applyState(prevState);
+                    this.showToast('İşlem geri alındı.', 'fa-solid fa-rotate-left');
+                },
+
+                redo() {
+                    if (this.redoStack.length === 0) return;
+                    const currentState = this.getStateSnapshot();
+                    this.undoStack.push(currentState);
+                    const nextState = JSON.parse(this.redoStack.pop());
+                    this.applyState(nextState);
+                    this.showToast('İşlem yinelendi (ileri alındı).', 'fa-solid fa-rotate-right');
+                },
+
+                applyState(state) {
+                    this.gelirler = state.gelirler;
+                    this.giderler = state.giderler;
+                    this.borclar = state.borclar;
+                    this.taksitliAlisverisler = state.taksitliAlisverisler;
+                    this.donemBaslangicGunu = state.donemBaslangicGunu;
+                },
+
+                showToast(msg, icon = 'fa-solid fa-circle-check') {
+                    this.toast.message = msg;
+                    this.toast.icon = icon;
+                    this.toast.show = true;
+                    setTimeout(() => { this.toast.show = false; }, 3000);
+                },
+
+                executeReset() {
+                    if (this.resetModal.password === '0000') {
+                        this.recordState();
+                        localStorage.clear();
+                        this.bazNakit = 0;
+                        this.gelirler = [];
+                        this.giderler = [];
+                        this.borclar = [];
+                        this.taksitliAlisverisler = [];
+                        this.donemBaslangicGunu = 15;
+                        this.simulasyon = { tahminiGelir: '', tahminiDigerGider: '' };
+                        this.resetModal.open = false;
+                        this.showToast('Tüm veriler başarıyla sıfırlandı.', 'fa-solid fa-rotate-right');
+                    } else {
+                        this.resetModal.error = true;
+                    }
+                },
+
+                toplamGelir() {
+                    return this.gelirler.reduce((acc, item) => acc + Number(item.tutar), 0);
+                },
+
+                toplamGider() {
+                    return this.giderler.reduce((acc, item) => acc + Number(item.tutar), 0);
+                },
+
+                toplamNakit() {
+                    return this.bazNakit + this.toplamGelir() - this.toplamGider();
+                },
+
+                toplamBorc() {
+                    return this.borclar.reduce((acc, item) => acc + Number(item.kalan), 0);
+                },
+
+                getKalanToplamBorc(borc) {
+                    if (borc.isInformational) return borc.kalan;
+                    if (!borc.grupId) return borc.kalan;
+                    return this.borclar
+                        .filter(b => b.grupId === borc.grupId)
+                        .reduce((acc, b) => acc + Number(b.kalan), 0);
+                },
+
+                netDurum() {
+                    return this.toplamNakit() - this.toplamBorc();
+                },
+
+                buDonemNetDurum() {
+                    return this.toplamNakit() - this.gelecekAyTaksitleriToplam();
+                },
+
+                getDebtGroupsWithInstallments() {
+                    let map = new Map();
+                    
+                    this.borclar.forEach(b => {
+                        let key = b.grupId ? b.grupId : ('single_' + b.id);
+                        if (!map.has(key)) {
+                            let baseName = b.adi.replace(/\s*\(\d+\/\d+\)$/, '');
+                            map.set(key, {
+                                key: key,
+                                baseName: baseName,
+                                toplam: b.toplam,
+                                items: [],
+                                expanded: false,
+                                isInformational: false
+                            });
+                        }
+                        map.get(key).items.push({ ...b, isInformational: false });
+                    });
+
+                    this.taksitliAlisverisler.forEach(p => {
+                        let key = 'plan_group_' + p.id;
+                        let items = p.taksitler.map(t => ({
+                            id: t.id,
+                            grupId: key,
+                            adi: t.adi,
+                            toplam: p.toplam,
+                            kalan: t.tutar,
+                            vade: t.vade,
+                            isInformational: true
+                        }));
+
+                        map.set(key, {
+                            key: key,
+                            baseName: p.adi + ' (Taksitli Alışveriş Planı)',
+                            toplam: p.toplam,
+                            items: items,
+                            expanded: false,
+                            isInformational: true
+                        });
+                    });
+
+                    let result = [];
+                    map.forEach(group => {
+                        group.items.sort((x, y) => new Date(x.vade + 'T00:00:00') - new Date(y.vade + 'T00:00:00'));
+                        group.kalanToplam = group.items.reduce((acc, i) => acc + Number(i.kalan), 0);
+                        group.nextVade = group.items.length > 0 ? group.items[0].vade : '-';
+                        result.push(group);
+                    });
+                    result.sort((a, b) => new Date(a.nextVade + 'T00:00:00') - new Date(b.nextVade + 'T00:00:00'));
+                    return result;
+                },
+
+                getDebtsGroupedByMonth() {
+                    let sorted = [...this.borclar].sort((a, b) => new Date(a.vade + 'T00:00:00') - new Date(b.vade + 'T00:00:00'));
+                    let map = new Map();
+                    sorted.forEach(b => {
+                        if (!b.vade) return;
+                        let d = new Date(b.vade + 'T00:00:00');
+                        let key = d.toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' });
+                        if (!map.has(key)) map.set(key, []);
+                        map.get(key).push(b);
+                    });
+                    let result = [];
+                    map.forEach((items, month) => {
+                        result.push({ month, items });
+                    });
+                    return result;
+                },
+
+                getDonemAciklamasi() {
+                    const today = new Date();
+                    const dNum = Number(this.donemBaslangicGunu) || 15;
+                    let start, end;
+                    if (today.getDate() >= dNum) {
+                        start = new Date(today.getFullYear(), today.getMonth(), dNum);
+                        end = new Date(today.getFullYear(), today.getMonth() + 1, dNum);
+                    } else {
+                        start = new Date(today.getFullYear(), today.getMonth() - 1, dNum);
+                        end = new Date(today.getFullYear(), today.getMonth(), dNum);
+                    }
+                    const opts = { day: 'numeric', month: 'long', year: 'numeric' };
+                    return `${start.toLocaleDateString('tr-TR', opts)} - ${end.toLocaleDateString('tr-TR', opts)}`;
+                },
+
+                gelecekAyBorclarListesi() {
+                    const today = new Date();
+                    const dNum = Number(this.donemBaslangicGunu) || 15;
+                    let start, end;
+                    
+                    if (today.getDate() >= dNum) {
+                        start = new Date(today.getFullYear(), today.getMonth(), dNum);
+                        end = new Date(today.getFullYear(), today.getMonth() + 1, dNum);
+                    } else {
+                        start = new Date(today.getFullYear(), today.getMonth() - 1, dNum);
+                        end = new Date(today.getFullYear(), today.getMonth(), dNum);
+                    }
+
+                    // Normal borçlar (d <= end ile sınır günü dahil sorunsuz filtreleme)
+                    let normalBorclar = this.borclar.filter(b => {
+                        if (!b.vade) return false;
+                        const d = new Date(b.vade + 'T00:00:00');
+                        return d <= end;
+                    }).map(b => ({ ...b, isInformational: false }));
+
+                    // Taksitli alışveriş planlarından bu döneme denk gelenler
+                    let planTaksitleri = [];
+                    this.taksitliAlisverisler.forEach(p => {
+                        p.taksitler.forEach(t => {
+                            if (!t.vade) return;
+                            const d = new Date(t.vade + 'T00:00:00');
+                            if (d >= start && d <= end) {
+                                planTaksitleri.push({
+                                    id: t.id,
+                                    adi: t.adi,
+                                    toplam: p.toplam,
+                                    kalan: t.tutar,
+                                    vade: t.vade,
+                                    isInformational: true
+                                });
+                            }
+                        });
+                    });
+
+                    return [...normalBorclar, ...planTaksitleri].sort((a, b) => new Date(a.vade + 'T00:00:00') - new Date(b.vade + 'T00:00:00'));
+                },
+
+                gelecekAyTaksitleriToplam() {
+                    return this.gelecekAyBorclarListesi().reduce((acc, item) => acc + Number(item.kalan), 0);
+                },
+
+                gelecekAyNetDurum() {
+                    const mevcut = this.toplamNakit();
+                    const gelir = Number(this.simulasyon.tahminiGelir) || 0;
+                    const digerGider = (this.simulasyon.tahminiDigerGider === '' || this.simulasyon.tahminiDigerGider === null || isNaN(this.simulasyon.tahminiDigerGider)) ? 0 : Number(this.simulasyon.tahminiDigerGider);
+                    const taksitler = this.gelecekAyTaksitleriToplam();
+                    return mevcut + gelir - digerGider - taksitler;
+                },
+
+                getBorcOrani() {
+                    const nakit = this.toplamNakit();
+                    const borc = this.toplamBorc();
+                    if (nakit <= 0) return borc > 0 ? '%100+' : '%0';
+                    let oran = (borc / nakit) * 100;
+                    return '%' + oran.toFixed(1);
+                },
+
+                getFinansalSaglik() {
+                    const nakit = this.toplamNakit();
+                    const borc = this.toplamBorc();
+                    const buDonemNet = this.buDonemNetDurum();
+
+                    if (buDonemNet < 0) {
+                        return {
+                            durum: 'Riskli',
+                            mesaj: 'Mevcut nakit varlığınız bu dönem vadesi gelen taksitleri karşılamaya yetmiyor! Ek gelir veya ödeme planı gerekebilir.'
+                        };
+                    } else if (borc > nakit * 1.5) {
+                        return {
+                            durum: 'Dikkat',
+                            mesaj: 'Toplam borç yükünüz mevcut nakit varlığınızın oldukça üzerinde. Taksit vadelerini yakından takip edin.'
+                        };
+                    } else {
+                        return {
+                            durum: 'Güvenli',
+                            mesaj: 'Finansal bakiye durumunuz dengede. Dönem taksitleriniz mevcut nakit varlığınızla rahatça karşılanabiliyor.'
+                        };
+                    }
+                },
+
+                getVadeBadgeClass(vadeStr) {
+                    const vadeDate = new Date(vadeStr + 'T00:00:00');
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const diffDays = Math.ceil((vadeDate - today) / (1000 * 60 * 60 * 24));
+                    
+                    if (diffDays < 0) return 'bg-rose-100 text-rose-700';
+                    if (diffDays <= 5) return 'bg-amber-100 text-amber-700';
+                    return 'bg-emerald-100 text-emerald-700';
+                },
+
+                addGelir() {
+                    if(!this.yeniGelir.tutar) return;
+                    this.recordState();
+                    this.gelirler.push({ id: Date.now(), ...this.yeniGelir });
+                    this.yeniGelir.tutar = '';
+                    this.showToast('Gelir başarıyla eklendi!');
+                },
+
+                addGider() {
+                    if(!this.yeniGider.tutar) return;
+                    this.recordState();
+                    this.giderler.push({ id: Date.now(), ...this.yeniGider });
+                    this.yeniGider.tutar = '';
+                    this.showToast('Gider başarıyla eklendi!');
+                },
+
+                addBorc() {
+                    let toplam = Number(this.yeniBorc.toplam);
+                    let sayi = Number(this.yeniBorc.taksitSayisi) || 1;
+                    if(!this.yeniBorc.adi || !toplam) return;
+
+                    this.recordState();
+
+                    if(sayi > 1) {
+                        let grupId = Date.now() + Math.random();
+                        let aylikTutar = toplam / sayi;
+                        let baslangicTarihi = new Date(this.yeniBorc.vade + 'T00:00:00');
+
+                        for(let i = 0; i < sayi; i++) {
+                            let vadeTarihi = new Date(baslangicTarihi);
+                            vadeTarihi.setMonth(vadeTarihi.getMonth() + i);
+                            let vadeStr = vadeTarihi.toISOString().split('T')[0];
+
+                            this.borclar.push({
+                                id: Date.now() + i + Math.random(),
+                                grupId: grupId,
+                                adi: `${this.yeniBorc.adi} (${i + 1}/${sayi})`,
+                                toplam: toplam,
+                                kalan: aylikTutar,
+                                vade: vadeStr
+                            });
+                        }
+                        this.showToast(`${sayi} taksitli kredi/borç planı başarıyla oluşturuldu!`);
+                    } else {
+                        this.borclar.push({
+                            id: Date.now(),
+                            grupId: null,
+                            adi: this.yeniBorc.adi,
+                            toplam: toplam,
+                            kalan: toplam,
+                            vade: this.yeniBorc.vade
+                        });
+                        this.showToast('Borç / kredi kaydı başarıyla eklendi!');
+                    }
+
+                    this.yeniBorc = { adi: '', toplam: '', taksitSayisi: 1, vade: new Date().toISOString().split('T')[0] };
+                },
+
+                addEkstre() {
+                    let tutar = Number(this.ekstreForm.tutar);
+                    if(!this.ekstreForm.banka || !tutar || !this.ekstreForm.vade) return;
+                    
+                    this.recordState();
+                    this.borclar.push({
+                        id: Date.now(),
+                        grupId: null,
+                        adi: `${this.ekstreForm.banka} Ekstresi`,
+                        toplam: tutar,
+                        kalan: tutar,
+                        vade: this.ekstreForm.vade
+                    });
+
+                    this.ekstreForm = { banka: 'Ziraat Bankası', tutar: '', vade: new Date().toISOString().split('T')[0] };
+                    this.showToast('Kredi kartı ekstresi başarıyla borçlara eklendi!');
+                },
+
+                addTaksitliAlisveris() {
+                    let toplam = Number(this.taksitliBorc.toplam);
+                    let sayi = Number(this.taksitliBorc.sayi);
+                    if(!this.taksitliBorc.adi || !toplam || !sayi || sayi <= 0) return;
+
+                    this.recordState();
+                    let aylikTutar = toplam / sayi;
+                    let baslangicTarihi = new Date(this.taksitliBorc.ilkTarih + 'T00:00:00');
+                    let taksitler = [];
+
+                    for(let i = 0; i < sayi; i++) {
+                        let vadeTarihi = new Date(baslangicTarihi);
+                        vadeTarihi.setMonth(vadeTarihi.getMonth() + i);
+                        let vadeStr = vadeTarihi.toISOString().split('T')[0];
+
+                        taksitler.push({
+                            id: Date.now() + i + Math.random(),
+                            adi: `${this.taksitliBorc.adi} (${i + 1}/${sayi})`,
+                            tutar: aylikTutar,
+                            vade: vadeStr
+                        });
+                    }
+
+                    this.taksitliAlisverisler.push({
+                        id: Date.now(),
+                        adi: this.taksitliBorc.adi,
+                        toplam: toplam,
+                        sayi: sayi,
+                        taksitler: taksitler
+                    });
+
+                    this.taksitliBorc = { adi: '', toplam: '', sayi: 6, ilkTarih: new Date().toISOString().split('T')[0] };
+                    this.showToast(`${sayi} taksitli alışveriş planı simülasyonlar ve takvim için kaydedildi!`);
+                },
+
+                openDetayModal(borc) {
+                    this.detayModal.borc = borc;
+                    this.detayModal.open = true;
+                },
+
+                openOdemeModal(borc) {
+                    if (borc.isInformational) {
+                        this.showToast('Bu taksit ekstre içeriğindedir (Bilgi amaçlıdır).', 'fa-solid fa-circle-info');
+                        return;
+                    }
+                    this.odemeModal.borc = borc;
+                    this.odemeModal.tutar = borc.kalan;
+                    this.odemeModal.open = true;
+                },
+
+                submitOdeme() {
+                    let borc = this.odemeModal.borc;
+                    let odeme = Number(this.odemeModal.tutar);
+                    if(borc && odeme > 0) {
+                        this.recordState();
+                        if(odeme > borc.kalan) odeme = borc.kalan;
+                        borc.kalan -= odeme;
+                        this.giderler.push({ id: Date.now(), kategori: 'Borç Ödemesi', tutar: odeme, tarih: new Date().toISOString().split('T')[0] });
+                        
+                        if(borc.kalan <= 0) {
+                            this.borclar = this.borclar.filter(b => b.id !== borc.id);
+                            this.showToast('Tebrikler! Bu taksit ödendi ve kapatıldı.');
+                        } else {
+                            this.showToast('Ödeme başarıyla düşüldü ve giderlere işlendi.');
+                        }
+                        this.odemeModal.open = false;
+                    }
+                },
+
+                confirmBorcSil(id) {
+                    this.confirmModal.title = 'Borcu Sil';
+                    this.confirmModal.message = 'Bu borç kaydını tamamen silmek istediğinize emin misiniz?';
+                    this.confirmModal.onConfirm = () => {
+                        this.recordState();
+                        this.borclar = this.borclar.filter(b => b.id !== id);
+                        this.showToast('Borç kaydı silindi.', 'fa-solid fa-trash');
+                    };
+                    this.confirmModal.open = true;
+                },
+
+                confirmTaksitliPlanSil(id) {
+                    this.confirmModal.title = 'Taksitli Planı Sil';
+                    this.confirmModal.message = 'Bu taksitli alışveriş planını simülasyon ve takvim listesinden silmek istediğinize emin misiniz?';
+                    this.confirmModal.onConfirm = () => {
+                        this.recordState();
+                        this.taksitliAlisverisler = this.taksitliAlisverisler.filter(p => p.id !== id);
+                        this.showToast('Taksitli plan silindi.', 'fa-solid fa-trash');
+                    };
+                    this.confirmModal.open = true;
+                },
+
+                formatCurrency(val) {
+                    return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(val || 0);
+                }
+            }
+        }
+    </script>
+</body>
+</html>
