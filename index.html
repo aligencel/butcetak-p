@@ -34,8 +34,8 @@
                 <!-- Form -->
                 <form @submit.prevent="handleAuth" class="space-y-4">
                     <div>
-                        <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Kullanıcı Adı</label>
-                        <input type="text" x-model="authForm.kullaniciAdi" required class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-600 bg-slate-50" placeholder="ornek_kullanici">
+                        <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Kullanıcı Adı veya E-posta</label>
+                        <input type="text" x-model="authForm.kullaniciAdi" required class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-600 bg-slate-50" placeholder="ornek_kullanici veya e-posta">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Şifre</label>
@@ -188,45 +188,40 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- Son Gelirler Tablosu -->
                     <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                        <div class="flex justify-between items-center mb-4">
-                            <h3 class="text-lg font-bold text-slate-800 flex items-center"><i class="fa-solid fa-calendar-days text-indigo-600 mr-2"></i> Aktif Borçlar (Ay Ay Liste)</h3>
-                            <button @click="activeTab = 'taksitler'" class="text-xs text-indigo-600 hover:underline font-semibold">Tümünü Gör</button>
-                        </div>
-                        <template x-if="borclar.length > 0">
-                            <div class="space-y-4 max-h-[380px] overflow-y-auto pr-1">
-                                <template x-for="group in getDebtsGroupedByMonth()" :key="group.month">
-                                    <div class="border border-slate-100 rounded-xl p-3 bg-slate-50/50">
-                                        <div class="text-xs font-bold text-indigo-700 uppercase tracking-wide mb-2 flex justify-between items-center bg-indigo-50 px-2.5 py-1.5 rounded-lg">
-                                            <span x-text="group.month"></span>
-                                            <span class="text-slate-600 font-semibold" x-text="formatCurrency(group.items.reduce((acc, i) => acc + Number(i.kalan), 0))"></span>
-                                        </div>
-                                        <div class="space-y-2">
-                                            <template x-for="b in group.items" :key="b.firebaseId || b.id">
-                                                <div class="flex justify-between items-center text-xs bg-white p-2.5 rounded-lg border border-slate-200 cursor-pointer hover:border-indigo-300 transition" @click="openDetayModal(b)">
-                                                    <div>
-                                                        <span class="font-medium text-slate-800 block" x-text="b.adi"></span>
-                                                        <span class="text-slate-400 text-[10px]">Vade: <span x-text="b.vade"></span></span>
-                                                    </div>
-                                                    <div class="text-right">
-                                                        <span class="font-bold text-indigo-600 block" x-text="formatCurrency(b.kalan)"></span>
-                                                        <span class="text-[10px] text-rose-600 font-semibold">Toplam: <span x-text="formatCurrency(b.toplam)"></span></span>
-                                                    </div>
-                                                </div>
-                                            </template>
-                                        </div>
-                                    </div>
-                                </template>
+                        <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center"><i class="fa-solid fa-circle-plus text-emerald-600 mr-2"></i> Son Gelirler</h3>
+                        <template x-if="gelirler.length > 0">
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left text-sm">
+                                    <thead class="border-b text-slate-400 font-medium">
+                                        <tr>
+                                            <th class="pb-2">Kategori</th>
+                                            <th class="pb-2">Tutar</th>
+                                            <th class="pb-2">Tarih</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-100">
+                                        <template x-for="g in gelirler.slice(-5).reverse()" :key="g.firebaseId || g.id">
+                                            <tr>
+                                                <td class="py-3 font-medium text-slate-800" x-text="g.kategori"></td>
+                                                <td class="py-3 text-emerald-600 font-semibold" x-text="formatCurrency(g.tutar)"></td>
+                                                <td class="py-3 text-slate-500" x-text="g.tarih"></td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
                             </div>
                         </template>
-                        <template x-if="borclar.length === 0">
-                            <p class="text-sm text-slate-400 py-6 text-center">Kayıtlı aktif borç bulunmuyor.</p>
+                        <template x-if="gelirler.length === 0">
+                            <p class="text-sm text-slate-400 py-6 text-center">Kayıtlı gelir bulunmuyor.</p>
                         </template>
                     </div>
 
+                    <!-- Son Giderler Tablosu -->
                     <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                        <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center"><i class="fa-solid fa-receipt text-indigo-600 mr-2"></i> Son Giderler</h3>
+                        <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center"><i class="fa-solid fa-receipt text-rose-600 mr-2"></i> Son Giderler</h3>
                         <template x-if="giderler.length > 0">
                             <div class="overflow-x-auto">
                                 <table class="w-full text-left text-sm">
@@ -251,6 +246,32 @@
                         </template>
                         <template x-if="giderler.length === 0">
                             <p class="text-sm text-slate-400 py-6 text-center">Kayıtlı gider bulunmuyor.</p>
+                        </template>
+                    </div>
+
+                    <!-- Aktif Borçlar Özeti -->
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-bold text-slate-800 flex items-center"><i class="fa-solid fa-calendar-days text-indigo-600 mr-2"></i> Aktif Borçlar</h3>
+                            <button @click="activeTab = 'taksitler'" class="text-xs text-indigo-600 hover:underline font-semibold">Tümünü Gör</button>
+                        </div>
+                        <template x-if="borclar.length > 0">
+                            <div class="space-y-3 max-h-[220px] overflow-y-auto pr-1">
+                                <template x-for="b in borclar.slice(-5).reverse()" :key="b.firebaseId || b.id">
+                                    <div class="flex justify-between items-center text-xs bg-slate-50 p-2.5 rounded-lg border border-slate-200 cursor-pointer hover:border-indigo-300 transition" @click="openDetayModal(b)">
+                                        <div>
+                                            <span class="font-medium text-slate-800 block" x-text="b.adi"></span>
+                                            <span class="text-slate-400 text-[10px]">Vade: <span x-text="b.vade"></span></span>
+                                        </div>
+                                        <div class="text-right">
+                                            <span class="font-bold text-rose-600 block" x-text="formatCurrency(b.kalan)"></span>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                        <template x-if="borclar.length === 0">
+                            <p class="text-sm text-slate-400 py-6 text-center">Aktif borç bulunmuyor.</p>
                         </template>
                     </div>
                 </div>
@@ -663,7 +684,7 @@
             console.error("Firebase init error", e);
         }
 
-        window.firebaseAppInstance = { db, appId, auth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, collection, doc, getDocs, setDoc, addDoc, deleteDoc, updateDoc };
+        window.firebaseAppInstance = { db, appId, auth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, collection, doc, getDocs, setDoc, addDoc, deleteDoc, updateDoc, onSnapshot };
 
         window.initAuthListener = function(component) {
             if (!auth) return;
@@ -727,22 +748,22 @@
                     this.authForm.error = '';
                     const { auth, signInWithEmailAndPassword, createUserWithEmailAndPassword } = window.firebaseAppInstance;
                     try {
-                        const cleanUser = this.authForm.kullaniciAdi.toLowerCase().replace(/[^a-z0-9_]/g, '').trim();
-                        if (!cleanUser) {
-                            this.authForm.error = 'Geçerli bir kullanıcı adı giriniz.';
+                        let inputVal = this.authForm.kullaniciAdi.trim();
+                        let email = inputVal.includes('@') ? inputVal : (inputVal.toLowerCase().replace(/[^a-z0-9_]/g, '') + '@butceapp.local');
+                        if (!inputVal) {
+                            this.authForm.error = 'Geçerli bir kullanıcı adı veya e-posta giriniz.';
                             return;
                         }
-                        const fakeEmail = cleanUser + '@butceapp.local';
                         if (this.authMode === 'login') {
-                            await signInWithEmailAndPassword(auth, fakeEmail, this.authForm.password);
+                            await signInWithEmailAndPassword(auth, email, this.authForm.password);
                         } else {
-                            await createUserWithEmailAndPassword(auth, fakeEmail, this.authForm.password);
+                            await createUserWithEmailAndPassword(auth, email, this.authForm.password);
                         }
                         this.authForm.kullaniciAdi = '';
                         this.authForm.password = '';
                     } catch (err) {
                         if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
-                            this.authForm.error = 'Kullanıcı adı veya şifre hatalı.';
+                            this.authForm.error = 'Kullanıcı adı/e-posta veya şifre hatalı.';
                         } else if (err.code === 'auth/email-already-in-use') {
                             this.authForm.error = 'Bu kullanıcı adı zaten kullanımda.';
                         } else if (err.code === 'auth/weak-password') {
@@ -764,19 +785,19 @@
 
                     onSnapshot(collection(db, 'artifacts', appId, 'users', uid, 'gelirler'), (snapshot) => {
                         this.gelirler = snapshot.docs.map(d => ({ firebaseId: d.id, ...d.data() }));
-                    }, (err) => console.error("Gelir dinleme hatası:", err));
+                    }, (err) => console.error("Gelir okuma hatası (Kuralları kontrol edin):", err));
 
                     onSnapshot(collection(db, 'artifacts', appId, 'users', uid, 'giderler'), (snapshot) => {
                         this.giderler = snapshot.docs.map(d => ({ firebaseId: d.id, ...d.data() }));
-                    }, (err) => console.error("Gider dinleme hatası:", err));
+                    }, (err) => console.error("Gider okuma hatası:", err));
 
                     onSnapshot(collection(db, 'artifacts', appId, 'users', uid, 'borclar'), (snapshot) => {
                         this.borclar = snapshot.docs.map(d => ({ firebaseId: d.id, ...d.data() }));
-                    }, (err) => console.error("Borç dinleme hatası:", err));
+                    }, (err) => console.error("Borç okuma hatası:", err));
 
                     onSnapshot(collection(db, 'artifacts', appId, 'users', uid, 'taksitliAlisverisler'), (snapshot) => {
                         this.taksitliAlisverisler = snapshot.docs.map(d => ({ firebaseId: d.id, ...d.data() }));
-                    }, (err) => console.error("Taksit dinleme hatası:", err));
+                    }, (err) => console.error("Taksit okuma hatası:", err));
 
                     onSnapshot(doc(db, 'artifacts', appId, 'users', uid, 'settings', 'config'), (docSnap) => {
                         if (docSnap.exists() && docSnap.data().donemBaslangicGunu) {
@@ -830,22 +851,22 @@
 
                             if (data.gelirler) {
                                 for(let item of data.gelirler) {
-                                    await addDoc(collection(db, 'artifacts', appId, 'users', this.userId, 'gelirler'), { kategori: item.kategori, tutar: item.tutar, tarih: item.tarih });
+                                    await addDoc(collection(db, 'artifacts', appId, 'users', this.userId, 'gelirler'), { kategori: item.kategori, tutar: Number(item.tutar), tarih: item.tarih });
                                 }
                             }
                             if (data.giderler) {
                                 for(let item of data.giderler) {
-                                    await addDoc(collection(db, 'artifacts', appId, 'users', this.userId, 'giderler'), { kategori: item.kategori, tutar: item.tutar, tarih: item.tarih });
+                                    await addDoc(collection(db, 'artifacts', appId, 'users', this.userId, 'giderler'), { kategori: item.kategori, tutar: Number(item.tutar), tarih: item.tarih });
                                 }
                             }
                             if (data.borclar) {
                                 for(let item of data.borclar) {
-                                    await addDoc(collection(db, 'artifacts', appId, 'users', this.userId, 'borclar'), { adi: item.adi, toplam: item.toplam, kalan: item.kalan, vade: item.vade, grupId: item.grupId || null });
+                                    await addDoc(collection(db, 'artifacts', appId, 'users', this.userId, 'borclar'), { adi: item.adi, toplam: Number(item.toplam), kalan: Number(item.kalan), vade: item.vade, grupId: item.grupId || null });
                                 }
                             }
                             if (data.taksitliAlisverisler) {
                                 for(let item of data.taksitliAlisverisler) {
-                                    await addDoc(collection(db, 'artifacts', appId, 'users', this.userId, 'taksitliAlisverisler'), { adi: item.adi, toplam: item.toplam, sayi: item.sayi, taksitler: item.taksitler });
+                                    await addDoc(collection(db, 'artifacts', appId, 'users', this.userId, 'taksitliAlisverisler'), { adi: item.adi, toplam: Number(item.toplam), sayi: Number(item.sayi), taksitler: item.taksitler });
                                 }
                             }
                             this.showToast('Yedek buluta yüklendi.', 'fa-solid fa-upload');
@@ -886,14 +907,14 @@
                     }
                 },
 
-                toplamGelir() { return this.gelirler.reduce((acc, item) => acc + Number(item.tutar), 0); },
-                toplamGider() { return this.giderler.reduce((acc, item) => acc + Number(item.tutar), 0); },
+                toplamGelir() { return this.gelirler.reduce((acc, item) => acc + (Number(item.tutar) || 0), 0); },
+                toplamGider() { return this.giderler.reduce((acc, item) => acc + (Number(item.tutar) || 0), 0); },
                 toplamNakit() { return this.bazNakit + this.toplamGelir() - this.toplamGider(); },
-                toplamBorc() { return this.borclar.reduce((acc, item) => acc + Number(item.kalan), 0); },
+                toplamBorc() { return this.borclar.reduce((acc, item) => acc + (Number(item.kalan) || 0), 0); },
                 getKalanToplamBorc(borc) {
-                    if (borc.isInformational) return borc.kalan;
-                    if (!borc.grupId) return borc.kalan;
-                    return this.borclar.filter(b => b.grupId === borc.grupId).reduce((acc, b) => acc + Number(b.kalan), 0);
+                    if (borc.isInformational) return Number(borc.kalan) || 0;
+                    if (!borc.grupId) return Number(borc.kalan) || 0;
+                    return this.borclar.filter(b => b.grupId === borc.grupId).reduce((acc, b) => acc + (Number(b.kalan) || 0), 0);
                 },
                 netDurum() { return this.toplamNakit() - this.toplamBorc(); },
                 buDonemNetDurum() { return this.toplamNakit() - this.gelecekAyTaksitleriToplam(); },
@@ -903,41 +924,26 @@
                     this.borclar.forEach(b => {
                         let key = b.grupId ? b.grupId : ('single_' + (b.firebaseId || b.id));
                         if (!map.has(key)) {
-                            let baseName = b.adi.replace(/\s*\(\d+\/\d+\)$/, '');
-                            map.set(key, { key, baseName, toplam: b.toplam, items: [], expanded: false, isInformational: false });
+                            let baseName = b.adi ? b.adi.replace(/\s*\(\d+\/\d+\)$/, '') : '';
+                            map.set(key, { key, baseName, toplam: Number(b.toplam) || 0, items: [], expanded: false, isInformational: false });
                         }
                         map.get(key).items.push({ ...b, isInformational: false });
                     });
                     this.taksitliAlisverisler.forEach(p => {
                         let key = 'plan_group_' + (p.firebaseId || p.id);
                         let items = (p.taksitler || []).map(t => ({
-                            firebaseId: t.id, grupId: key, adi: t.adi, toplam: p.toplam, kalan: t.tutar, vade: t.vade, isInformational: true
+                            firebaseId: t.id, grupId: key, adi: t.adi, toplam: Number(p.toplam) || 0, kalan: Number(t.tutar) || 0, vade: t.vade, isInformational: true
                         }));
-                        map.set(key, { key, baseName: p.adi + ' (Taksitli Alışveriş Planı)', toplam: p.toplam, items, expanded: false, isInformational: true });
+                        map.set(key, { key, baseName: (p.adi || '') + ' (Taksitli Alışveriş Planı)', toplam: Number(p.toplam) || 0, items, expanded: false, isInformational: true });
                     });
                     let result = [];
                     map.forEach(group => {
                         group.items.sort((x, y) => new Date(x.vade + 'T00:00:00') - new Date(y.vade + 'T00:00:00'));
-                        group.kalanToplam = group.items.reduce((acc, i) => acc + Number(i.kalan), 0);
+                        group.kalanToplam = group.items.reduce((acc, i) => acc + (Number(i.kalan) || 0), 0);
                         group.nextVade = group.items.length > 0 ? group.items[0].vade : '-';
                         result.push(group);
                     });
                     result.sort((a, b) => new Date(a.nextVade + 'T00:00:00') - new Date(b.nextVade + 'T00:00:00'));
-                    return result;
-                },
-
-                getDebtsGroupedByMonth() {
-                    let sorted = [...this.borclar].sort((a, b) => new Date(a.vade + 'T00:00:00') - new Date(b.vade + 'T00:00:00'));
-                    let map = new Map();
-                    sorted.forEach(b => {
-                        if (!b.vade) return;
-                        let d = new Date(b.vade + 'T00:00:00');
-                        let key = d.toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' });
-                        if (!map.has(key)) map.set(key, []);
-                        map.get(key).push(b);
-                    });
-                    let result = [];
-                    map.forEach((items, month) => result.push({ month, items }));
                     return result;
                 },
 
@@ -977,14 +983,14 @@
                             if (!t.vade) return;
                             const d = new Date(t.vade + 'T00:00:00');
                             if (d < end) {
-                                planTaksitleri.push({ id: t.id, adi: t.adi, toplam: p.toplam, kalan: t.tutar, vade: t.vade, isInformational: true });
+                                planTaksitleri.push({ id: t.id, adi: t.adi, toplam: Number(p.toplam) || 0, kalan: Number(t.tutar) || 0, vade: t.vade, isInformational: true });
                             }
                         });
                     });
                     return [...normalBorclar, ...planTaksitleri].sort((a, b) => new Date(a.vade + 'T00:00:00') - new Date(b.vade + 'T00:00:00'));
                 },
 
-                gelecekAyTaksitleriToplam() { return this.gelecekAyBorclarListesi().reduce((acc, item) => acc + Number(item.kalan), 0); },
+                gelecekAyTaksitleriToplam() { return this.gelecekAyBorclarListesi().reduce((acc, item) => acc + (Number(item.kalan) || 0), 0); },
                 gelecekAyNetDurum() {
                     const mevcut = this.toplamNakit();
                     const gelir = Number(this.simulasyon.tahminiGelir) || 0;
@@ -1016,12 +1022,16 @@
                     if (!this.yeniGelir.tutar || !this.userId) return;
                     try {
                         const { db, appId, collection, addDoc } = window.firebaseAppInstance;
-                        await addDoc(collection(db, 'artifacts', appId, 'users', this.userId, 'gelirler'), { ...this.yeniGelir, tutar: Number(this.yeniGelir.tutar) });
+                        await addDoc(collection(db, 'artifacts', appId, 'users', this.userId, 'gelirler'), { 
+                            kategori: this.yeniGelir.kategori, 
+                            tutar: Number(this.yeniGelir.tutar), 
+                            tarih: this.yeniGelir.tarih 
+                        });
                         this.yeniGelir.tutar = '';
                         this.showToast('Gelir kaydedildi.');
                     } catch(err) {
                         console.error(err);
-                        this.showToast('Kayıt başarısız! Firebase kurallarını kontrol edin.', 'fa-solid fa-triangle-exclamation');
+                        this.showToast('Kayıt başarısız!', 'fa-solid fa-triangle-exclamation');
                     }
                 },
 
@@ -1029,12 +1039,16 @@
                     if (!this.yeniGider.tutar || !this.userId) return;
                     try {
                         const { db, appId, collection, addDoc } = window.firebaseAppInstance;
-                        await addDoc(collection(db, 'artifacts', appId, 'users', this.userId, 'giderler'), { ...this.yeniGider, tutar: Number(this.yeniGider.tutar) });
+                        await addDoc(collection(db, 'artifacts', appId, 'users', this.userId, 'giderler'), { 
+                            kategori: this.yeniGider.kategori, 
+                            tutar: Number(this.yeniGider.tutar), 
+                            tarih: this.yeniGider.tarih 
+                        });
                         this.yeniGider.tutar = '';
                         this.showToast('Gider kaydedildi.');
                     } catch(err) {
                         console.error(err);
-                        this.showToast('Kayıt başarısız! Firebase kurallarını kontrol edin.', 'fa-solid fa-triangle-exclamation');
+                        this.showToast('Kayıt başarısız!', 'fa-solid fa-triangle-exclamation');
                     }
                 },
 
@@ -1052,19 +1066,19 @@
                                 let vadeTarihi = new Date(baslangicTarihi);
                                 vadeTarihi.setMonth(vadeTarihi.getMonth() + i);
                                 await addDoc(collection(db, 'artifacts', appId, 'users', this.userId, 'borclar'), {
-                                    grupId, adi: `${this.yeniBorc.adi} (${i + 1}/${sayi})`, toplam, kalan: aylikTutar, vade: vadeTarihi.toISOString().split('T')[0]
+                                    grupId, adi: `${this.yeniBorc.adi} (${i + 1}/${sayi})`, toplam: Number(toplam), kalan: Number(aylikTutar), vade: vadeTarihi.toISOString().split('T')[0]
                                 });
                             }
                         } else {
                             await addDoc(collection(db, 'artifacts', appId, 'users', this.userId, 'borclar'), {
-                                grupId: null, adi: this.yeniBorc.adi, toplam, kalan: toplam, vade: this.yeniBorc.vade
+                                grupId: null, adi: this.yeniBorc.adi, toplam: Number(toplam), kalan: Number(toplam), vade: this.yeniBorc.vade
                             });
                         }
                         this.yeniBorc = { adi: '', toplam: '', taksitSayisi: 1, vade: new Date().toISOString().split('T')[0] };
                         this.showToast('Borç eklendi.');
                     } catch(err) {
                         console.error(err);
-                        this.showToast('Kayıt başarısız! Firebase kurallarını kontrol edin.', 'fa-solid fa-triangle-exclamation');
+                        this.showToast('Kayıt başarısız!', 'fa-solid fa-triangle-exclamation');
                     }
                 },
 
@@ -1083,15 +1097,15 @@
                         await addDoc(collection(db, 'artifacts', appId, 'users', this.userId, 'borclar'), {
                             grupId: null, 
                             adi: `${this.ekstreForm.banka} Ekstresi`, 
-                            toplam: tutar, 
-                            kalan: tutar, 
+                            toplam: Number(tutar), 
+                            kalan: Number(tutar), 
                             vade: this.ekstreForm.vade
                         });
                         this.ekstreForm = { banka: 'Ziraat Bankası', tutar: '', vade: new Date().toISOString().split('T')[0] };
                         this.showToast('Ekstre başarıyla eklendi.', 'fa-solid fa-circle-check');
                     } catch (err) {
                         console.error("Ekstre ekleme hatası:", err);
-                        this.showToast('Kayıt başarısız! Firebase kurallarını kontrol edin.', 'fa-solid fa-triangle-exclamation');
+                        this.showToast('Kayıt başarısız!', 'fa-solid fa-triangle-exclamation');
                     }
                 },
 
@@ -1106,17 +1120,17 @@
                         for (let i = 0; i < sayi; i++) {
                             let vadeTarihi = new Date(baslangicTarihi);
                             vadeTarihi.setMonth(vadeTarihi.getMonth() + i);
-                            taksitler.push({ id: Date.now() + i + Math.random(), adi: `${this.taksitliBorc.adi} (${i + 1}/${sayi})`, tutar: aylikTutar, vade: vadeTarihi.toISOString().split('T')[0] });
+                            taksitler.push({ id: Date.now() + i + Math.random(), adi: `${this.taksitliBorc.adi} (${i + 1}/${sayi})`, tutar: Number(aylikTutar), vade: vadeTarihi.toISOString().split('T')[0] });
                         }
                         const { db, appId, collection, addDoc } = window.firebaseAppInstance;
                         await addDoc(collection(db, 'artifacts', appId, 'users', this.userId, 'taksitliAlisverisler'), {
-                            adi: this.taksitliBorc.adi, toplam, sayi, taksitler
+                            adi: this.taksitliBorc.adi, toplam: Number(toplam), sayi: Number(sayi), taksitler
                         });
                         this.taksitliBorc = { adi: '', toplam: '', sayi: 6, ilkTarih: new Date().toISOString().split('T')[0] };
                         this.showToast('Taksitli plan eklendi.');
                     } catch(err) {
                         console.error(err);
-                        this.showToast('Kayıt başarısız! Firebase kurallarını kontrol edin.', 'fa-solid fa-triangle-exclamation');
+                        this.showToast('Kayıt başarısız!', 'fa-solid fa-triangle-exclamation');
                     }
                 },
 
@@ -1138,9 +1152,9 @@
                             const { db, appId, doc, deleteDoc, updateDoc, collection, addDoc } = window.firebaseAppInstance;
                             if (borc.firebaseId) {
                                 if (yeniKalan <= 0) await deleteDoc(doc(db, 'artifacts', appId, 'users', this.userId, 'borclar', borc.firebaseId));
-                                else await updateDoc(doc(db, 'artifacts', appId, 'users', this.userId, 'borclar', borc.firebaseId), { kalan: yeniKalan });
+                                else await updateDoc(doc(db, 'artifacts', appId, 'users', this.userId, 'borclar', borc.firebaseId), { kalan: Number(yeniKalan) });
                             }
-                            await addDoc(collection(db, 'artifacts', appId, 'users', this.userId, 'giderler'), { kategori: 'Borç Ödemesi', tutar: odeme, tarih: new Date().toISOString().split('T')[0] });
+                            await addDoc(collection(db, 'artifacts', appId, 'users', this.userId, 'giderler'), { kategori: 'Borç Ödemesi', tutar: Number(odeme), tarih: new Date().toISOString().split('T')[0] });
                             this.odemeModal.open = false;
                             this.showToast('Ödeme işlendi.');
                         } catch(err) {
@@ -1167,7 +1181,7 @@
                     this.confirmModal.open = true;
                 },
 
-                formatCurrency(val) { return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(val || 0); }
+                formatCurrency(val) { return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(Number(val) || 0); }
             }
         }
     </script>
